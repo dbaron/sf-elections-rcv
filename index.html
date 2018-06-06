@@ -5,8 +5,15 @@
 
 body { background: white; color: black; }
 
-td.leader { background: #bfb; }
-td.winner { background: #7f7; }
+table.rcv_results { border-collapse: collapse; border-width: 2px; }
+table.rcv_results > tbody > tr > td.leader { background: #bfb; }
+table.rcv_results > tbody > tr > td.winner { background: #7f7; }
+
+table.rcv_results > tbody > tr > td,
+table.rcv_results > tbody > tr > th { border: 1px solid black }
+table.rcv_results > tbody > tr > td.votes { border-left-width: 2px; border-right-color: gray; }
+table.rcv_results > tbody > tr > td.percent { border-right-width: 2px; border-left-color: gray; }
+table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right-width: 2px; }
 
 </style>
 <script>
@@ -201,7 +208,7 @@ function make_rcv_table(candidates_ranked, rounds)
     });
 
     let table = document.createElement("table");
-    table.setAttribute("border", "");
+    table.classList.add("rcv_results");
     let tbody = document.createElement("tbody");
     table.appendChild(tbody);
     for (let candidate of candidates_ranked) {
@@ -213,20 +220,36 @@ function make_rcv_table(candidates_ranked, rounds)
             let round_data = rounds_data[round_index];
             let text;
             let votes = 0;
-            if (candidate.id in round) {
+            let in_round = candidate.id in round;
+            if (in_round) {
                 votes = round[candidate.id];
                 text = "" + votes;
             } else {
                 text = "";
             }
-            let cell = make_cell("td", text);
+            let votes_cell = make_cell("td", text);
+            let pct_cell = make_cell("td", in_round ? (Math.round(votes / round_data.sum * 10000) / 100) + "%" : "");
             if (votes * 2 > round_data.sum) {
-                cell.classList.add("winner");
+                votes_cell.classList.add("winner");
+                pct_cell.classList.add("winner");
             } else if (votes == round_data.max) {
-                cell.classList.add("leader");
+                votes_cell.classList.add("leader");
+                pct_cell.classList.add("leader");
             }
-            tr.appendChild(cell);
+            votes_cell.classList.add("votes");
+            pct_cell.classList.add("percent");
+            tr.appendChild(votes_cell);
+            tr.appendChild(pct_cell);
         }
+    }
+    let tr_sum = document.createElement("tr");
+    tbody.appendChild(tr_sum);
+    tr_sum.appendChild(make_cell("th", "Total"));
+    for (let round_data of rounds_data) {
+        let total_cell = make_cell("th", "" + round_data.sum);
+        total_cell.classList.add("total");
+        total_cell.setAttribute("colspan", "2");
+        tr_sum.appendChild(total_cell);
     }
 
     return table;
