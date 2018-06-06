@@ -1,0 +1,170 @@
+<!DOCTYPE HTML>
+<meta charset=UTF-8>
+<title>Election Results, San Francisco, June 2018</title>
+<script>
+//'use strict';
+
+function* generate_lines(str)
+{
+    let index = 0;
+    while (true) {
+        let next = str.indexOf("\n", index);
+        if (next == -1) {
+            break;
+        }
+        yield str.slice(index, next);
+        index = next + 1;
+    }
+    return str.slice(index);
+}
+
+let FIELDS = {};
+
+function read_fields()
+{
+    return fetch(new Request("data/20180605_1_masterlookup.txt")).then(function(response) {
+        return response.text();
+    }).then(function(text) {
+        for (line of generate_lines(text)) {
+            let type = line.slice(0, 10).trimEnd();
+            let id = line.slice(10, 17);
+            let name = line.slice(17, 67).trimEnd();
+            let order = line.slice(67, 74);
+            let candidate_contest = line.slice(74, 81);
+            let writein = line.slice(81, 82);
+            let provisional = line.slice(82, 83);
+            if (!(type in FIELDS)) {
+                FIELDS[type] = {};
+            }
+            let field = FIELDS[type];
+            if (type == "Candidate") {
+                field[id] = { name, order, contest: candidate_contest, writein }
+            } else {
+                if (candidate_contest != "0000000") {
+                    console.log("unexpected candidate_contest", line, candidate_contest);
+                }
+                if (writein != "0") {
+                    console.log("unexpected writein", line, writein);
+                }
+                field[id] = { name, order }
+            }
+            if (provisional != "0") {
+                console.log("unexpected provisional", line, provisional);
+            }
+        }
+    });
+}
+
+let BALLOTS = [];
+
+function read_ballots() {
+    return fetch(new Request("data/20180605_1_ballotimage.txt")).then(function(response) {
+        return response.text();
+    }).then(function(text) {
+        function* generate_ballot_singles(text) {
+            for (line of generate_lines(text)) {
+                let contest = line.slice(0, 7);
+                let voter = line.slice(7, 16);
+                let machine_serial_number = line.slice(16, 23);
+                let tally_type = line.slice(23, 26);
+                let precinct = line.slice(26, 33);
+                let vote_rank = line.slice(33, 36);
+                let candidate = line.slice(36, 43);
+                let overvote = line.slice(43, 44);
+                let undervote = line.slice(44, 45);
+                yield {contest, voter, machine_serial_number, tally_type, precinct,
+                       vote_rank, candidate, overvote, undervote};
+            }
+        }
+        function* generate_ballot_triples(text) {
+            // Assume that the data file has the three ranks for each ballot in order,
+            // and report errors if that's not the case, since we don't handle it.
+            let gen = generate_ballot_singles(text);
+            while (true) {
+                let b1 = gen.next();
+                let b2 = gen.next();
+                let b3 = gen.next();
+                if (b1.done) {
+                    return;
+                }
+                if (b3.done) {
+                    // These exceptions don't produce useful diagnostics (nothing on console)!
+                    console.log("last triple truncated");
+                    throw "bad ballot data: last triple truncated";
+                }
+                b1 = b1.value;
+                b2 = b2.value;
+                b3 = b3.value;
+                const common_props = [ "contest", "voter", "machine_serial_number", "tally_type", "precinct" ];
+                let ballot = {};
+                for (let prop of common_props) {
+                    if (b1[prop] != b2[prop] || b1[prop] != b3[prop]) {
+                        // These exceptions don't produce useful diagnostics (nothing on console)!
+                        console.log("inconsistent data within ballot");
+                        throw "inconsistent data within ballot";
+                    }
+                    ballot[prop] = b1[prop];
+                }
+                if (b1.vote_rank != "001" || b2.vote_rank != "002" || b3.vote_rank != "003") {
+                    // These exceptions don't produce useful diagnostics (nothing on console)!
+                    console.log("ranks throwing", b1.vote_rank, b2.vote_rank, b3.vote_rank);
+                    throw "ballot not ranked properly";
+                }
+                ballot.ranks = [b1, b2, b3].map(b => ({ candidate: b.candidate,
+                                                        overvote:  b.overvote,
+                                                        undervote: b.undervote }));
+                yield ballot;
+            }
+        }
+        BALLOTS = Array.from(generate_ballot_triples(text));
+    });
+}
+
+function show_ui() {
+    // FIXME: Add ability to choose.
+    let contest = "0000020";
+
+    let contest_name = FIELDS["Contest"][contest];
+
+    let candidates_remaining = Object.entries(FIELDS["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
+    // .map(([id, candidate]) => Object.assign({id}, candidate));
+    let candidates_eliminated = [];
+    let rounds = [];
+    while (Object.keys(candidates_remaining).length > 1) {
+        let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
+        for (let ballot of BALLOTS) {
+            for (let rank of ballot.ranks) {
+                if (rank.overvote == "1") {
+                    // Discard overvotes, even if a later rank of the ballot is good.
+                    // Allow undervotes to fall back to later ranks.
+                    // This produces results that match the official results.
+                    break;
+                }
+                if (rank.candidate in round) {
+                    ++round[rank.candidate];
+                    break;
+                }
+            }
+        }
+        let lowest_total = Math.min(...Object.values(round));
+        // FIXME: This probably isn't right for multiple candidates being eliminated,
+        // especially if it eliminates the last one.
+        for (let id in candidates_remaining) {
+            if (round[id] == lowest_total) {
+                candidates_eliminated.push(Object.assign({id}, candidates_remaining[id]));
+                delete candidates_remaining[id];
+            }
+        }
+        rounds.push(round);
+    }
+
+    // FIXME: Put the output somewhere more useful than console.log!
+    console.log(candidates_eliminated);
+    console.log(rounds);
+}
+
+read_fields().then(function(p) { return read_ballots()} ).then(function(p) { return show_ui() });
+
+</script>
+
+<pre id="output"></pre>
