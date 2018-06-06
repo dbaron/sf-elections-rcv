@@ -19,6 +19,57 @@ table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right
 <script>
 'use strict';
 
+var gDefaults = {
+    election: "20180605_4",
+};
+function gethash() {
+    var hash = {};
+    if (window.location.hash != "") {
+        try {
+            hash = JSON.parse(unescape(window.location.hash.substring(1)));
+        } catch(ex) {}
+    }
+    for (var prop in gDefaults) {
+        if (!(prop in hash)) {
+            hash[prop] = gDefaults[prop];
+        }
+    }
+    return hash;
+}
+
+function sethash(json) {
+    let newhash = escape(JSON.stringify(json));
+    if (window.location.hash != newhash) {
+        window.location.hash = newhash;
+    }
+}
+
+var gState;
+
+function dom_load_handler() {
+    hashchange_listener();
+}
+
+function hashchange_listener() {
+    gState = gethash();
+    sethash(gState);
+    update_ui();
+}
+
+window.addEventListener("DOMContentLoaded", dom_load_handler);
+window.addEventListener("hashchange", hashchange_listener);
+
+let ELECTIONS = [
+  { name: "June 5, 2018 Election, Preliminary Report 4",
+    id: "20180605_4" },
+  { name: "June 5, 2018 Election, Preliminary Report 1",
+    id: "20180605_1" },
+].reduce((obj, entry) => ({...obj, [entry.id]:entry}), {});
+
+function get_current_election() {
+    return ELECTIONS[gState.election];
+}
+
 function* generate_lines(str)
 {
     let index = 0;
@@ -33,13 +84,12 @@ function* generate_lines(str)
     return str.slice(index);
 }
 
-let FIELDS = {};
-
-function read_fields()
+function read_fields(election_id)
 {
-    return fetch(new Request("data/20180605_4_masterlookup.txt")).then(function(response) {
+    return fetch(new Request(`data/${election_id}_masterlookup.txt`)).then(function(response) {
         return response.text();
     }).then(function(text) {
+        let fields = {};
         for (let line of generate_lines(text)) {
             let type = line.slice(0, 10).trimEnd();
             let id = line.slice(10, 17);
@@ -48,10 +98,10 @@ function read_fields()
             let candidate_contest = line.slice(74, 81);
             let writein = line.slice(81, 82);
             let provisional = line.slice(82, 83);
-            if (!(type in FIELDS)) {
-                FIELDS[type] = {};
+            if (!(type in fields)) {
+                fields[type] = {};
             }
-            let field = FIELDS[type];
+            let field = fields[type];
             if (type == "Candidate") {
                 field[id] = { name, order, contest: candidate_contest, writein }
             } else {
@@ -67,13 +117,12 @@ function read_fields()
                 console.log("unexpected provisional", line, provisional);
             }
         }
+        return fields;
     });
 }
 
-let BALLOTS = [];
-
-function read_ballots() {
-    return fetch(new Request("data/20180605_4_ballotimage.txt")).then(function(response) {
+function read_ballots(election_id) {
+    return fetch(new Request(`data/${election_id}_ballotimage.txt`)).then(function(response) {
         return response.text();
     }).then(function(text) {
         function* generate_ballot_singles(text) {
@@ -131,23 +180,46 @@ function read_ballots() {
                 yield ballot;
             }
         }
-        BALLOTS = Array.from(generate_ballot_triples(text));
+        return Array.from(generate_ballot_triples(text));
     });
 }
 
-function show_ui() {
+function start_needed_loads(election)
+{
+    if (!("fields" in election)) {
+        election.fields = "loading";
+        read_fields(election.id).then(function(fields) { election.fields = fields; update_ui(); }).catch(function(error) { console.log(error); delete election.fields; });
+    }
+
+    if (!("ballots" in election)) {
+        election.ballots = "loading";
+        read_ballots(election.id).then(function(ballots) { election.ballots = ballots; update_ui(); }).catch(function(error) { console.log(error); delete election.ballots; });
+    }
+}
+
+function update_ui() {
+    let election = get_current_election();
+    start_needed_loads(election);
+
+    let output = document.getElementById("output");
+
+    if (election.fields == "loading" || election.ballots == "loading") {
+        output.textContent = "Loading...";
+        return;
+    }
+
     // FIXME: Add ability to choose.
     let contest = "0000020";
 
-    let contest_name = FIELDS["Contest"][contest];
+    let contest_name = election.fields["Contest"][contest];
 
-    let candidates_remaining = Object.entries(FIELDS["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
+    let candidates_remaining = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_ranked = [];
     let rounds = [];
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
-        for (let ballot of BALLOTS) {
+        for (let ballot of election.ballots) {
             for (let rank of ballot.ranks) {
                 if (rank.overvote == "1") {
                     // Discard overvotes, even if a later rank of the ballot is good.
@@ -176,7 +248,6 @@ function show_ui() {
     candidates_ranked.reverse();
 
     let table = make_rcv_table(candidates_ranked, rounds);
-    let output = document.getElementById("output");
     output.textContent = "";
     output.appendChild(table);
 }
@@ -250,8 +321,8 @@ function make_rcv_table(candidates_ranked, rounds)
     return table;
 }
 
-read_fields().then(function(p) { return read_ballots()} ).then(function(p) { return show_ui() }).catch(function(ex) { console.log(ex) });
-
 </script>
+
+<body>
 
 <div id="output"></div>
