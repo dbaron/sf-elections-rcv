@@ -1,6 +1,14 @@
 <!DOCTYPE HTML>
 <meta charset=UTF-8>
 <title>Election Results, San Francisco, June 2018</title>
+<style>
+
+body { background: white; color: black; }
+
+td.leader { background: #bfb; }
+td.winner { background: #7f7; }
+
+</style>
 <script>
 //'use strict';
 
@@ -128,7 +136,7 @@ function show_ui() {
 
     let candidates_remaining = Object.entries(FIELDS["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
-    let candidates_eliminated = [];
+    let candidates_ranked = [];
     let rounds = [];
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
@@ -151,20 +159,81 @@ function show_ui() {
         // especially if it eliminates the last one.
         for (let id in candidates_remaining) {
             if (round[id] == lowest_total) {
-                candidates_eliminated.push(Object.assign({id}, candidates_remaining[id]));
+                candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
                 delete candidates_remaining[id];
             }
         }
         rounds.push(round);
     }
+    candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
+    candidates_ranked.reverse();
 
-    // FIXME: Put the output somewhere more useful than console.log!
-    console.log(candidates_eliminated);
-    console.log(rounds);
+    console.log("1");
+    let table = make_rcv_table(candidates_ranked, rounds);
+    console.log("2");
+    let output = document.getElementById("output");
+    console.log("3");
+    output.textContent = "";
+    console.log("4");
+    output.appendChild(table);
+    console.log("5");
 }
 
-read_fields().then(function(p) { return read_ballots()} ).then(function(p) { return show_ui() });
+function make_cell(tag_name, text)
+{
+    let cell = document.createElement(tag_name);
+    cell.textContent = text;
+    return cell;
+}
+
+function make_rcv_table(candidates_ranked, rounds)
+{
+    let rounds_data = rounds.map(round => {
+        let max = 0;
+        let sum = 0;
+        for (let votes of Object.values(round)) {
+            if (votes > max) {
+                max = votes;
+            }
+            sum += votes;
+        }
+        return {max, sum};
+    });
+
+    let table = document.createElement("table");
+    table.setAttribute("border", "");
+    let tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+    for (let candidate of candidates_ranked) {
+        let tr = document.createElement("tr");
+        tbody.appendChild(tr);
+        tr.appendChild(make_cell("th", candidate.name));
+        for (let round_index in rounds) {
+            let round = rounds[round_index];
+            let round_data = rounds_data[round_index];
+            let text;
+            let votes = 0;
+            if (candidate.id in round) {
+                votes = round[candidate.id];
+                text = "" + votes;
+            } else {
+                text = "";
+            }
+            let cell = make_cell("td", text);
+            if (votes * 2 > round_data.sum) {
+                cell.classList.add("winner");
+            } else if (votes == round_data.max) {
+                cell.classList.add("leader");
+            }
+            tr.appendChild(cell);
+        }
+    }
+
+    return table;
+}
+
+read_fields().then(function(p) { return read_ballots()} ).then(function(p) { return show_ui() }).catch(function(ex) { console.log(ex) });
 
 </script>
 
-<pre id="output"></pre>
+<div id="output"></div>
