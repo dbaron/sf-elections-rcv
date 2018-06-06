@@ -22,7 +22,7 @@ let FIELDS = {};
 
 function read_fields()
 {
-    return fetch(new Request("data/20180605_1_masterlookup.txt")).then(function(response) {
+    return fetch(new Request("data/20180605_4_masterlookup.txt")).then(function(response) {
         return response.text();
     }).then(function(text) {
         for (line of generate_lines(text)) {
@@ -58,7 +58,7 @@ function read_fields()
 let BALLOTS = [];
 
 function read_ballots() {
-    return fetch(new Request("data/20180605_1_ballotimage.txt")).then(function(response) {
+    return fetch(new Request("data/20180605_4_ballotimage.txt")).then(function(response) {
         return response.text();
     }).then(function(text) {
         function* generate_ballot_singles(text) {
