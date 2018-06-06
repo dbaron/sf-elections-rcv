@@ -175,15 +175,10 @@ function show_ui() {
     candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
     candidates_ranked.reverse();
 
-    console.log("1");
     let table = make_rcv_table(candidates_ranked, rounds);
-    console.log("2");
     let output = document.getElementById("output");
-    console.log("3");
     output.textContent = "";
-    console.log("4");
     output.appendChild(table);
-    console.log("5");
 }
 
 function make_cell(tag_name, text)
