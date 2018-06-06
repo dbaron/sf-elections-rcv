@@ -47,11 +47,31 @@ function sethash(json) {
 var gState;
 
 function dom_load_handler() {
+    gState = gethash();
+
+    let elections_select = document.getElementById("election");
+    for (let election_id in ELECTIONS) {
+        let election = ELECTIONS[election_id];
+        let option = document.createElement("option");
+        option.textContent = election.name;
+        option.setAttribute("value", election.id);
+        elections_select.appendChild(option);
+    }
+    elections_select.value = gState.election;
+    elections_select.addEventListener("change", function(event) {
+        gState.election = elections_select.value;
+        state_changed();
+    });
     hashchange_listener();
 }
 
 function hashchange_listener() {
     gState = gethash();
+    sethash(gState);
+    update_ui();
+}
+
+function state_changed() {
     sethash(gState);
     update_ui();
 }
@@ -326,5 +346,8 @@ function make_rcv_table(candidates_ranked, rounds)
 </script>
 
 <body>
+
+<select id="election"></select>
+<select id="content"></select>
 
 <div id="output"></div>
