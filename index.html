@@ -20,7 +20,7 @@ table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right
 'use strict';
 
 var gDefaults = {
-    election: "20180605_4",
+    election: "20180606",
 };
 function gethash() {
     var hash = {};
@@ -60,6 +60,8 @@ window.addEventListener("DOMContentLoaded", dom_load_handler);
 window.addEventListener("hashchange", hashchange_listener);
 
 let ELECTIONS = [
+  { name: "June 5, 2018 Election, Preliminary Report 5",
+    id: "20180606" },
   { name: "June 5, 2018 Election, Preliminary Report 4",
     id: "20180605_4" },
   { name: "June 5, 2018 Election, Preliminary Report 1",
