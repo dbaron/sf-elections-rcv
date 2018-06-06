@@ -10,7 +10,7 @@ td.winner { background: #7f7; }
 
 </style>
 <script>
-//'use strict';
+'use strict';
 
 function* generate_lines(str)
 {
@@ -33,7 +33,7 @@ function read_fields()
     return fetch(new Request("data/20180605_4_masterlookup.txt")).then(function(response) {
         return response.text();
     }).then(function(text) {
-        for (line of generate_lines(text)) {
+        for (let line of generate_lines(text)) {
             let type = line.slice(0, 10).trimEnd();
             let id = line.slice(10, 17);
             let name = line.slice(17, 67).trimEnd();
@@ -70,7 +70,7 @@ function read_ballots() {
         return response.text();
     }).then(function(text) {
         function* generate_ballot_singles(text) {
-            for (line of generate_lines(text)) {
+            for (let line of generate_lines(text)) {
                 let contest = line.slice(0, 7);
                 let voter = line.slice(7, 16);
                 let machine_serial_number = line.slice(16, 23);
