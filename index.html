@@ -50,8 +50,7 @@ function dom_load_handler() {
     gState = gethash();
 
     let elections_select = document.getElementById("election");
-    for (let election_id in ELECTIONS) {
-        let election = ELECTIONS[election_id];
+    for (let election of ELECTIONS) {
         let option = document.createElement("option");
         option.textContent = election.name;
         option.setAttribute("value", election.id);
@@ -105,10 +104,10 @@ let ELECTIONS = [
     id: "20151119" },
   { name: "November 4, 2014 Election, Final Report",
     id: "20141104" /* my ID, not the Department of Elections */ },
-].reduce((obj, entry) => ({...obj, [entry.id]:entry}), {});
+];
 
 function get_current_election() {
-    return ELECTIONS[gState.election];
+    return ELECTIONS.find((election) => election.id == gState.election);
 }
 
 function* generate_lines(str)
