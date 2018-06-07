@@ -15,6 +15,16 @@ table.rcv_results > tbody > tr > td.votes { border-left-width: 2px; border-right
 table.rcv_results > tbody > tr > td.percent { border-right-width: 2px; border-left-color: gray; }
 table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right-width: 2px; }
 
+div.filter {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0.5em;
+    padding: 0.5em;
+    border: 1px solid;
+}
+
+div.filter > label { display: block }
+
 </style>
 <script>
 'use strict';
@@ -249,6 +259,26 @@ function should_suppress_change(select_element) {
     return select_element.hasAttribute("data-suppress-change");
 }
 
+function precinct_to_sup_district(precinct_id, fields)
+{
+    let precinct = fields["Precinct"][precinct_id].name;
+
+    if (!(/^Pct [0-9]{4}/.exec(precinct))) {
+        throw `Unexpected precinct: ${precinct}`;
+    }
+    precinct = precinct.slice(4);
+    if (precinct[0] == "7" || precinct[0] == "9") {
+        if (precinct[1] == 0) {
+            return "10";
+        }
+        return precinct[1];
+    }
+    if (precinct[0] == "1" && precinct[1] == "1") {
+        return "11";
+    }
+    throw `Unexpected precinct: ${precinct}`;
+}
+
 function update_ui() {
     let election = get_current_election();
 
@@ -302,8 +332,27 @@ function update_ui() {
 
     let contest = contest_select.value;
 
-    let candidates_remaining = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
+    let sup_districts = {};
+    let tally_types = {};
+    for (let ballot of election.ballots) {
+        if (ballot.contest != contest) {
+            continue;
+        }
+        let district = precinct_to_sup_district(ballot.precinct, election.fields);
+        if (!(district in sup_districts)) {
+            sup_districts[district] = 0;
+        }
+        ++sup_districts[district];
+        let tally_type = ballot.tally_type;
+        if (!(tally_type in tally_types)) {
+            tally_types[tally_type] = 0;
+        }
+        ++tally_types[tally_type];
+    }
+
+    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
+    let candidates_remaining = Object.assign({}, contest_candidates);
     let candidates_ranked = [];
     let rounds = [];
     while (Object.keys(candidates_remaining).length > 1) {
@@ -339,6 +388,32 @@ function update_ui() {
     let table = make_rcv_table(candidates_ranked, rounds);
     output.textContent = "";
     output.appendChild(table);
+
+    let filter_container = document.createElement("div");
+
+    let make_filter = (name, id, choices) => {
+        let filter_div = document.createElement("div");
+        filter_div.classList.add("filter");
+        filter_div.setAttribute("data-filter", id);
+        filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
+
+        for (let choice of choices) {
+            let label = document.createElement("label");
+            let checkbox = document.createElement("input");
+            checkbox.setAttribute("type", "checkbox");
+            checkbox.setAttribute("checked", "");
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(choice.name));
+            filter_div.appendChild(label);
+        }
+        filter_container.appendChild(filter_div);
+    };
+
+    make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num));
+    make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })));
+    make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
+
+    output.appendChild(filter_container);
 }
 
 function make_cell(tag_name, text)
