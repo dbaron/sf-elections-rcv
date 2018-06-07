@@ -369,7 +369,9 @@ function make_rcv_table(candidates_ranked, rounds)
     for (let candidate of candidates_ranked) {
         let tr = document.createElement("tr");
         tbody.appendChild(tr);
-        tr.appendChild(make_cell("th", candidate.name));
+        let candidate_th = make_cell("th", candidate.name);
+        candidate_th.classList.add("candidate");
+        tr.appendChild(candidate_th);
         for (let round_index in rounds) {
             let round = rounds[round_index];
             let round_data = rounds_data[round_index];
