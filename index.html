@@ -46,8 +46,25 @@ div.filter > label { display: block }
 <script>
 'use strict';
 
+let ELECTIONS = [
+  { name: "June 5, 2018 Election, Preliminary Report 6",
+    id: "20180607" },
+  { name: "June 5, 2018 Election, Preliminary Report 5",
+    id: "20180606" },
+  { name: "June 5, 2018 Election, Preliminary Report 4",
+    id: "20180605_4" },
+  { name: "June 5, 2018 Election, Preliminary Report 1",
+    id: "20180605_1" },
+  { name: "November 8, 2016 Election, Final Report",
+    id: "20161206" },
+  { name: "November 3, 2015 Election, Final Report",
+    id: "20151119" },
+  { name: "November 4, 2014 Election, Final Report",
+    id: "20141104" /* my ID, not the Department of Elections */ },
+];
+
 var gDefaults = {
-    election: "20180606",
+    election: ELECTIONS[0].id,
     filters: [],
 };
 function gethash() {
@@ -118,23 +135,6 @@ function state_changed() {
 
 window.addEventListener("DOMContentLoaded", dom_load_handler);
 window.addEventListener("hashchange", hashchange_listener);
-
-let ELECTIONS = [
-  { name: "June 5, 2018 Election, Preliminary Report 6",
-    id: "20180607" },
-  { name: "June 5, 2018 Election, Preliminary Report 5",
-    id: "20180606" },
-  { name: "June 5, 2018 Election, Preliminary Report 4",
-    id: "20180605_4" },
-  { name: "June 5, 2018 Election, Preliminary Report 1",
-    id: "20180605_1" },
-  { name: "November 8, 2016 Election, Final Report",
-    id: "20161206" },
-  { name: "November 3, 2015 Election, Final Report",
-    id: "20151119" },
-  { name: "November 4, 2014 Election, Final Report",
-    id: "20141104" /* my ID, not the Department of Elections */ },
-];
 
 function get_current_election() {
     return ELECTIONS.find((election) => election.id == gState.election);
