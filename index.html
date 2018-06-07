@@ -367,6 +367,15 @@ function update_ui() {
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
         for (let ballot of election.ballots) {
+            let district = precinct_to_sup_district(ballot.precinct, election.fields);
+            if (gState.filters.indexOf(`district-d${district}`) != -1) {
+                continue;
+            }
+            let tally_type = ballot.tally_type;
+            if (gState.filters.indexOf(`tally_type-${ballot.tally_type}`) != -1) {
+                continue;
+            }
+
             for (let rank of ballot.ranks) {
                 if (rank.overvote == "1") {
                     // Discard overvotes, even if a later rank of the ballot is good.
