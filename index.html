@@ -59,6 +59,9 @@ function dom_load_handler() {
     }
     elections_select.value = gState.election;
     elections_select.addEventListener("change", function(event) {
+        if (should_suppress_change(elections_select)) {
+            return;
+        }
         gState.election = elections_select.value;
         state_changed();
     });
@@ -249,6 +252,14 @@ function should_suppress_change(select_element) {
 
 function update_ui() {
     let election = get_current_election();
+
+    let elections_select = document.getElementById("election");
+    if (elections_select.value != election.id) {
+        set_suppress_change(elections_select, true);
+        elections_select.value = election.id;
+        set_suppress_change(elections_select, false);
+    }
+
     start_needed_loads(election);
 
     let output = document.getElementById("output");
