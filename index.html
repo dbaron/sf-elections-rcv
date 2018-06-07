@@ -31,6 +31,7 @@ div.filter > label { display: block }
 
 var gDefaults = {
     election: "20180606",
+    filters: [],
 };
 function gethash() {
     var hash = {};
@@ -350,7 +351,7 @@ function update_ui() {
         ++tally_types[tally_type];
     }
 
-    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: candidate}), {});
+    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: {...candidate, id}}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_remaining = Object.assign({}, contest_candidates);
     let candidates_ranked = [];
@@ -391,17 +392,34 @@ function update_ui() {
 
     let filter_container = document.createElement("div");
 
-    let make_filter = (name, id, choices) => {
+    let make_filter = (name, set_id, choices) => {
         let filter_div = document.createElement("div");
         filter_div.classList.add("filter");
-        filter_div.setAttribute("data-filter", id);
+        filter_div.setAttribute("data-filter", set_id);
         filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
 
         for (let choice of choices) {
             let label = document.createElement("label");
             let checkbox = document.createElement("input");
             checkbox.setAttribute("type", "checkbox");
-            checkbox.setAttribute("checked", "");
+            let item_id = `${set_id}-${choice.id}`;
+            if (gState.filters.indexOf(item_id) == -1) {
+                checkbox.setAttribute("checked", "");
+            }
+            checkbox.addEventListener("change", (event) => {
+                if (checkbox.checked) {
+                    let index = gState.filters.indexOf(item_id);
+                    if (index == -1) {
+                        console.log(`Unexpectedly couldn't find filter ${item_id}.`);
+                    } else {
+                        gState.filters.splice(index, 1);
+                        state_changed();
+                    }
+                } else {
+                    gState.filters.push(item_id);
+                    state_changed();
+                }
+            });
             label.appendChild(checkbox);
             label.appendChild(document.createTextNode(choice.name));
             filter_div.appendChild(label);
