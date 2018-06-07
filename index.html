@@ -96,6 +96,12 @@ let ELECTIONS = [
     id: "20180605_4" },
   { name: "June 5, 2018 Election, Preliminary Report 1",
     id: "20180605_1" },
+  { name: "November 8, 2016 Election, Final Report",
+    id: "20161206" },
+  { name: "November 3, 2015 Election, Final Report",
+    id: "20151119" },
+  { name: "November 4, 2014 Election, Final Report",
+    id: "20141104" /* my ID, not the Department of Elections */ },
 ].reduce((obj, entry) => ({...obj, [entry.id]:entry}), {});
 
 function get_current_election() {
