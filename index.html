@@ -15,6 +15,8 @@ table.rcv_results > tbody > tr > td.votes { border-left-width: 2px; border-right
 table.rcv_results > tbody > tr > td.percent { border-right-width: 2px; border-left-color: gray; }
 table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right-width: 2px; }
 
+table.rcv_results > tbody > tr > th.candidate-removed { font-weight: normal; text-decoration: line-through; }
+
 div.filter {
     display: inline-block;
     vertical-align: top;
@@ -355,6 +357,12 @@ function update_ui() {
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_remaining = Object.assign({}, contest_candidates);
     let candidates_ranked = [];
+    for (let id in candidates_remaining) {
+        if (gState.filters.indexOf(`candidate-${id}`) != -1) {
+            candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
+            delete candidates_remaining[id];
+        }
+    }
     let rounds = [];
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
@@ -464,6 +472,9 @@ function make_rcv_table(candidates_ranked, rounds)
         tbody.appendChild(tr);
         let candidate_th = make_cell("th", candidate.name);
         candidate_th.classList.add("candidate");
+        if (gState.filters.indexOf(`candidate-${candidate.id}`) != -1) {
+            candidate_th.classList.add("candidate-removed");
+        }
         tr.appendChild(candidate_th);
         for (let round_index in rounds) {
             let round = rounds[round_index];
