@@ -163,9 +163,9 @@ function read_fields(election_id)
     }).then(function(text) {
         let fields = {};
         for (let line of generate_lines(text)) {
-            let type = line.slice(0, 10).trimEnd();
+            let type = line.slice(0, 10).trimRight();
             let id = line.slice(10, 17);
-            let name = line.slice(17, 67).trimEnd();
+            let name = line.slice(17, 67).trimRight();
             let order = line.slice(67, 74);
             let candidate_contest = line.slice(74, 81);
             let writein = line.slice(81, 82);
@@ -372,7 +372,7 @@ function update_ui() {
         ++tally_types[tally_type];
     }
 
-    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => ({ ...o, [id]: {...candidate, id}}), {});
+    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_remaining = Object.assign({}, contest_candidates);
     let candidates_ranked = [];
@@ -384,7 +384,7 @@ function update_ui() {
     }
     let rounds = [];
     while (Object.keys(candidates_remaining).length > 1) {
-        let round = Object.keys(candidates_remaining).reduce((o, id) => ({...o, [id]: 0}), {});
+        let round = Object.keys(candidates_remaining).reduce((o, id) => Object.assign(o, {[id]: 0}), {});
         for (let ballot of election.ballots) {
             let district = precinct_to_sup_district(ballot.precinct, election.fields);
             if (gState.filters.indexOf(`district-d${district}`) != -1) {
