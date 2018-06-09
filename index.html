@@ -281,24 +281,31 @@ function should_suppress_change(select_element) {
     return select_element.hasAttribute("data-suppress-change");
 }
 
-function precinct_to_sup_district(precinct_id, fields)
+function precincts_to_sup_districts(fields)
 {
-    let precinct = fields["Precinct"][precinct_id].name;
+    const map = new Map();
+    for (const precinct_id in fields["Precinct"]) {
+        let precinct = fields["Precinct"][precinct_id].name;
 
-    if (!(/^Pct [0-9]{4}/.exec(precinct))) {
-        throw `Unexpected precinct: ${precinct}`;
-    }
-    precinct = precinct.slice(4);
-    if (precinct[0] == "7" || precinct[0] == "9") {
-        if (precinct[1] == 0) {
-            return "10";
+        if (!(/^Pct [0-9]{4}/.exec(precinct))) {
+            throw `Unexpected precinct: ${precinct}`;
         }
-        return precinct[1];
+        precinct = precinct.slice(4);
+        let sup_district;
+        if (precinct[0] == "7" || precinct[0] == "9") {
+            if (precinct[1] == 0) {
+                sup_district = "10";
+            } else {
+                sup_district = precinct[1];
+            }
+        } else if (precinct[0] == "1" && precinct[1] == "1") {
+            sup_district = "11";
+        } else {
+            throw `Unexpected precinct: ${precinct}`;
+        }
+        map.set(precinct_id, sup_district);
     }
-    if (precinct[0] == "1" && precinct[1] == "1") {
-        return "11";
-    }
-    throw `Unexpected precinct: ${precinct}`;
+    return map;
 }
 
 function update_ui() {
@@ -356,11 +363,15 @@ function update_ui() {
 
     let sup_districts = {};
     let tally_types = {};
+    const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields);
     for (let ballot of election.ballots) {
         if (ballot.contest != contest) {
             continue;
         }
-        let district = precinct_to_sup_district(ballot.precinct, election.fields);
+        let district = precinct_to_sup_district_map.get(ballot.precinct);
+        if (district == null) {
+            throw Error("precinct_to_sup_district_map could not find " + ballot.precinct)
+        }
         if (!(district in sup_districts)) {
             sup_districts[district] = 0;
         }
@@ -383,15 +394,19 @@ function update_ui() {
         }
     }
     let rounds = [];
+    const removed_districts = new Set(gState.filters
+        .map(x => /^district-d(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
+    const removed_tally_types = new Set(gState.filters
+        .map(x => /^tally_type-(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => Object.assign(o, {[id]: 0}), {});
         for (let ballot of election.ballots) {
-            let district = precinct_to_sup_district(ballot.precinct, election.fields);
-            if (gState.filters.indexOf(`district-d${district}`) != -1) {
+            let district = precinct_to_sup_district_map.get(ballot.precinct);
+            if (removed_districts.has(district)) {
                 continue;
             }
             let tally_type = ballot.tally_type;
-            if (gState.filters.indexOf(`tally_type-${ballot.tally_type}`) != -1) {
+            if (removed_tally_types.has(ballot.tally_type)) {
                 continue;
             }
 
