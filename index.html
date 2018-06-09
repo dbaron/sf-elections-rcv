@@ -394,15 +394,19 @@ function update_ui() {
         }
     }
     let rounds = [];
+    const removed_districts = new Set(gState.filters
+        .map(x => /^district-d(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
+    const removed_tally_types = new Set(gState.filters
+        .map(x => /^tally_type-(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
     while (Object.keys(candidates_remaining).length > 1) {
         let round = Object.keys(candidates_remaining).reduce((o, id) => Object.assign(o, {[id]: 0}), {});
         for (let ballot of election.ballots) {
             let district = precinct_to_sup_district_map.get(ballot.precinct);
-            if (gState.filters.indexOf(`district-d${district}`) != -1) {
+            if (removed_districts.has(district)) {
                 continue;
             }
             let tally_type = ballot.tally_type;
-            if (gState.filters.indexOf(`tally_type-${ballot.tally_type}`) != -1) {
+            if (removed_tally_types.has(ballot.tally_type)) {
                 continue;
             }
 
