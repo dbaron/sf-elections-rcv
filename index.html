@@ -512,6 +512,19 @@ function make_rcv_table(candidates_ranked, rounds)
 
     let table = document.createElement("table");
     table.classList.add("rcv_results");
+
+    let thead = document.createElement("thead");
+    table.appendChild(thead);
+    let candidate_th = make_cell("th", "Candidate");
+    thead.appendChild(candidate_th);
+
+    for (let round_index in rounds) {
+        let round_th = make_cell("th", "" + round_index);
+        round_th.classList.add("round");
+        round_th.setAttribute("colspan", "2");
+        thead.appendChild(round_th);
+    }
+
     let tbody = document.createElement("tbody");
     table.appendChild(tbody);
     for (let candidate of candidates_ranked) {
