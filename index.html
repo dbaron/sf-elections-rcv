@@ -600,7 +600,7 @@ function update_transfers(candidates, event) {
     }
 
     transfers.textContent = "";
-    let votes = event.originalTarget.votes;
+    let votes = event.target.votes;
     if (!votes) {
         return;
     }
