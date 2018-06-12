@@ -715,7 +715,7 @@ function make_rcv_table(candidates_ranked, rounds)
             } else if (votes == round_data.max) {
                 votes_cell.classList.add("leader");
                 pct_cell.classList.add("leader");
-            } else if (votes == round_data.min) {
+            } else if (votes == round_data.min && in_round) {
                 votes_cell.classList.add("bubble");
                 pct_cell.classList.add("bubble");
             }
