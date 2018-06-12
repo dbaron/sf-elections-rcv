@@ -34,6 +34,7 @@ table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right
 table.rcv_results > tbody > tr > th.candidate-removed { font-weight: normal; text-decoration: line-through; }
 
 table.transfers { border-collapse: collapse; border-width: 2px; }
+table.transfers > tbody > tr > td,
 table.transfers > tbody > tr > th { border: 1px solid black }
 
 div.filter {
@@ -332,8 +333,9 @@ function CandidateData(id, candidates_eliminated) {
     this.first_place_votes = 0;
     this.second_place_votes = 0;
     this.third_place_votes = 0;
-    this.transfers_from = Object.keys(candidates_eliminated)
-        .reduce((o, id) => Object.assign(o, {[id]: 0}), {});
+    this.candidates_eliminated = candidates_eliminated;
+    this.transfers_from_recent = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
+    this.transfers_from_first = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
 }
 
 CandidateData.prototype.receive_vote = function(ranks) {
@@ -341,15 +343,33 @@ CandidateData.prototype.receive_vote = function(ranks) {
         ++this.first_place_votes;
     } else if (ranks[1].candidate == this.id) {
         ++this.second_place_votes;
-        if (ranks[0].candidate in this.transfers_from) {
-            ++this.transfers_from[ranks[0].candidate];
+        if (ranks[0].candidate in this.transfers_from_recent) {
+            ++this.transfers_from_recent[ranks[0].candidate];
+            ++this.transfers_from_first[ranks[0].candidate];
         }
     } else if (ranks[2].candidate == this.id) {
         ++this.third_place_votes;
-        if (ranks[1].candidate in this.transfers_from) {
-            ++this.transfers_from[ranks[1].candidate];
-        } else if (ranks[0].candidate in this.transfers_from) {
-            ++this.transfers_from[ranks[0].candidate];
+        if (ranks[1].candidate in this.transfers_from_recent &&
+            ranks[0].candidate in this.transfers_from_recent &&
+            ranks[1].candidate != ranks[0].candidate) {
+            let r0i = this.candidates_eliminated.indexOf(ranks[0].candidate);
+            let r1i = this.candidates_eliminated.indexOf(ranks[1].candidate);
+            if (r0i == -1 || r1i == -1) {
+                throw `unexpected index ${r0i} ${r1i}`;
+            }
+            if (r0i < r1i) {
+                ++this.transfers_from_recent[ranks[1].candidate];
+                ++this.transfers_from_first[ranks[0].candidate];
+            } else {
+                ++this.transfers_from_recent[ranks[0].candidate];
+                ++this.transfers_from_first[ranks[1].candidate];
+            }
+        } else if (ranks[1].candidate in this.transfers_from_recent) {
+            ++this.transfers_from_recent[ranks[1].candidate];
+            ++this.transfers_from_first[ranks[1].candidate];
+        } else if (ranks[0].candidate in this.transfers_from_recent) {
+            ++this.transfers_from_recent[ranks[0].candidate];
+            ++this.transfers_from_first[ranks[0].candidate];
         }
     }
 }
@@ -436,7 +456,7 @@ function update_ui() {
     let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_remaining = Object.assign({}, contest_candidates);
-    let candidates_eliminated = {};
+    let candidates_eliminated = [];
     let candidates_ranked = [];
     for (let id in candidates_remaining) {
         if (gState.filters.indexOf(`candidate-${id}`) != -1) {
@@ -512,9 +532,10 @@ function update_ui() {
         // especially if it eliminates the last one.
         for (let id in candidates_remaining) {
             if (round[id] == lowest_total) {
-                candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
+                let c = Object.assign({id}, candidates_remaining[id]);
+                candidates_ranked.push(c);
                 delete candidates_remaining[id];
-                candidates_eliminated[id] = {};
+                candidates_eliminated.push(id);
             }
         }
         rounds.push(round);
@@ -594,26 +615,28 @@ function update_transfers(candidates, event) {
 
     let table = document.createElement("table");
     table.classList.add("transfers");
-    let thead = document.createElement("thead");
-    table.appendChild(thead);
-    let candidate_th = make_cell("th", "Candidate");
-    let votes_th = make_cell("th", "Votes transfered from");
-    thead.appendChild(candidate_th);
-    thead.appendChild(votes_th);
-
     let tbody = document.createElement("tbody");
     table.appendChild(tbody);
+    let tr_headers = document.createElement("tr");
+    tbody.appendChild(tr_headers);
+    tr_headers.appendChild(make_cell("th", "Candidate"));
+    tr_headers.appendChild(make_cell("th", "Votes transfered from (recent)"));
+    tr_headers.appendChild(make_cell("th", "Votes transfered from (first choice)"));
 
-    Object.entries(votes.transfers_from).map(([id, votes]) => ({ id: id, votes: votes }))
+    Object.entries(votes.transfers_from_recent).map(([id, votes]) => ({ id: id, votes: votes }))
         .sort((a, b) => b.votes - a.votes)
         .forEach((transfer) => {
             let tr = document.createElement("tr");
             tbody.appendChild(tr);
+            console.log(transfer.id);
+            console.log(Object.values(candidates)[0]);
             let candidate_name = Object.values(candidates).find((candidate) => candidate.id == transfer.id).name;
             let candidate_cell = make_cell("th", "" + candidate_name);
-            let votes_cell = make_cell("th", "" + transfer.votes);
+            let votes_recent_cell = make_cell("td", "" + transfer.votes);
+            let votes_first_cell = make_cell("td", "" + votes.transfers_from_first[transfer.id]);
             tr.appendChild(candidate_cell);
-            tr.appendChild(votes_cell);
+            tr.appendChild(votes_recent_cell);
+            tr.appendChild(votes_first_cell);
         });
 
     transfers.appendChild(table);
@@ -647,19 +670,20 @@ function make_rcv_table(candidates_ranked, rounds)
     let table = document.createElement("table");
     table.classList.add("rcv_results");
 
-    let thead = document.createElement("thead");
-    table.appendChild(thead);
+    let tbody = document.createElement("tbody");
+
+    let tr_header = document.createElement("tr");
+    table.appendChild(tr_header);
     let candidate_th = make_cell("th", "Candidate");
-    thead.appendChild(candidate_th);
+    tr_header.appendChild(candidate_th);
 
     for (let round_index in rounds) {
         let round_th = make_cell("th", "" + round_index);
         round_th.classList.add("round");
         round_th.setAttribute("colspan", "2");
-        thead.appendChild(round_th);
+        tr_header.appendChild(round_th);
     }
 
-    let tbody = document.createElement("tbody");
     tbody.addEventListener("click", update_transfers.bind(null, candidates_ranked));
     table.appendChild(tbody);
     for (let candidate of candidates_ranked) {
@@ -713,19 +737,19 @@ function make_rcv_table(candidates_ranked, rounds)
         tr_sum.appendChild(total_cell);
     }
 
-    let tfoot = document.createElement("tfoot");
-    table.appendChild(tfoot);
     let tr_overvotes = document.createElement("tr");
     let tr_exhausted = document.createElement("tr");
-    tfoot.appendChild(tr_overvotes);
-    tfoot.appendChild(tr_exhausted);
+    tbody.appendChild(tr_overvotes);
+    tbody.appendChild(tr_exhausted);
     tr_overvotes.appendChild(make_cell("th", "Overvotes"));
     tr_exhausted.appendChild(make_cell("th", "Exhausted"));
     for (let round of rounds) {
         let overvotes_cell = make_cell("th", "" + round.overvotes);
         overvotes_cell.setAttribute("colspan", "2");
+        overvotes_cell.classList.add("total");
         tr_overvotes.appendChild(overvotes_cell);
         let exhausted_cell = make_cell("th", "" + round.exhausted);
+        exhausted_cell.classList.add("total");
         exhausted_cell.setAttribute("colspan", "2");
         tr_exhausted.appendChild(exhausted_cell);
     }
