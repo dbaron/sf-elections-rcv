@@ -516,8 +516,8 @@ function update_ui() {
             } else if (undervote) {
                 ++round.undervotes;
             } else {
-		++round.exhausted;
-	    }
+                ++round.exhausted;
+            }
         });
         console.log("Round " + round_index + " has " + ballot_count + " ballots");
         let lowest_total = Math.min(...Object.values(round));
