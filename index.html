@@ -23,6 +23,7 @@ body { background: white; color: black; }
 table.rcv_results { border-collapse: collapse; border-width: 2px; }
 table.rcv_results > tbody > tr > td.leader { background: #bfb; }
 table.rcv_results > tbody > tr > td.winner { background: #7f7; }
+table.rcv_results > tbody > tr > td.bubble { background: #fbb; }
 
 table.rcv_results > tbody > tr > td,
 table.rcv_results > tbody > tr > th { border: 1px solid black }
@@ -31,6 +32,9 @@ table.rcv_results > tbody > tr > td.percent { border-right-width: 2px; border-le
 table.rcv_results > tbody > tr > th.total { border-left-width: 2px; border-right-width: 2px; }
 
 table.rcv_results > tbody > tr > th.candidate-removed { font-weight: normal; text-decoration: line-through; }
+
+table.transfers { border-collapse: collapse; border-width: 2px; }
+table.transfers > tbody > tr > th { border: 1px solid black }
 
 div.filter {
     display: inline-block;
@@ -41,6 +45,14 @@ div.filter {
 }
 
 div.filter > label { display: block }
+
+div.transfer {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0.5em;
+    padding: 0.5em;
+    border: 1px solid;
+}
 
 </style>
 <script>
@@ -212,8 +224,9 @@ function read_ballots(election_id) {
                 let candidate = line.slice(36, 43);
                 let overvote = line.slice(43, 44);
                 let undervote = line.slice(44, 45);
+                let elimination_round = Number.MAX_SAFE_INTEGER;
                 yield {contest, voter, machine_serial_number, tally_type, precinct,
-                       vote_rank, candidate, overvote, undervote};
+                       vote_rank, candidate, overvote, undervote, elimination_round };
             }
         }
         function* generate_ballot_triples(text) {
@@ -312,6 +325,37 @@ function precincts_to_sup_districts(fields)
     return map;
 }
 
+function CandidateData(id, candidates_eliminated) {
+    this.id = id;
+    this.first_place_votes = 0;
+    this.second_place_votes = 0;
+    this.third_place_votes = 0;
+    this.transfers_from = Object.keys(candidates_eliminated)
+        .reduce((o, id) => Object.assign(o, {[id]: 0}), {});
+}
+
+CandidateData.prototype.receive_vote = function(ranks) {
+    if (ranks[0].candidate == this.id) {
+        ++this.first_place_votes;
+    } else if (ranks[1].candidate == this.id) {
+        ++this.second_place_votes;
+        if (ranks[0].candidate in this.transfers_from) {
+            ++this.transfers_from[ranks[0].candidate];
+        }
+    } else if (ranks[2].candidate == this.id) {
+        ++this.third_place_votes;
+        if (ranks[1].candidate in this.transfers_from) {
+            ++this.transfers_from[ranks[1].candidate];
+        } else if (ranks[0].candidate in this.transfers_from) {
+            ++this.transfers_from[ranks[0].candidate];
+        }
+    }
+}
+
+CandidateData.prototype.valueOf = function() {
+    return this.first_place_votes + this.second_place_votes + this.third_place_votes;
+}
+
 function update_ui() {
     let election = get_current_election();
 
@@ -390,11 +434,14 @@ function update_ui() {
     let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
     // .map(([id, candidate]) => Object.assign({id}, candidate));
     let candidates_remaining = Object.assign({}, contest_candidates);
+    let candidates_eliminated = {};
     let candidates_ranked = [];
     for (let id in candidates_remaining) {
         if (gState.filters.indexOf(`candidate-${id}`) != -1) {
             candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
             delete candidates_remaining[id];
+            // It's important that these removed candidates are *not* in candidates_eliminated,
+            // for computing accurate backwards looking data in counterfactual scenarios.
         }
     }
     let rounds = [];
@@ -403,30 +450,74 @@ function update_ui() {
     const removed_tally_types = new Set(gState.filters
         .map(x => /^tally_type-(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
     while (Object.keys(candidates_remaining).length > 1) {
-        let round = Object.keys(candidates_remaining).reduce((o, id) => Object.assign(o, {[id]: 0}), {});
-        for (let ballot of election.ballots) {
+        let ballot_count = 0;
+        let round_index = rounds.length;
+        let round = Object.keys(candidates_remaining)
+            .reduce((o, id) => Object.assign(o, {[id]: new CandidateData(id, candidates_eliminated)}), {});
+
+        // NB: It's very important that these properties are not enumerable!
+        Object.defineProperty(round, "overvotes", {
+            value: 0,
+            enumerable: false,
+            writable: true,
+        });
+        Object.defineProperty(round, "undervotes", {
+            value: 0,
+            enumerable: false,
+            writable: true,
+        });
+        Object.defineProperty(round, "exhausted", {
+            value: 0,
+            enumerable: false,
+            writable: true,
+        });
+
+        election.ballots.forEach(function(ballot) {
             let district = precinct_to_sup_district_map.get(ballot.precinct);
             if (removed_districts.has(district)) {
-                continue;
+                return;
             }
             let tally_type = ballot.tally_type;
             if (removed_tally_types.has(ballot.tally_type)) {
-                continue;
+                return;
             }
 
+            if (round_index > ballot.elimination_round) {
+                // Skip ballots already eliminated.
+                return;
+            }
+
+            ++ballot_count;
+            let overvote = false;
+            let undervote = false;
             for (let rank of ballot.ranks) {
                 if (rank.overvote == "1") {
                     // Discard overvotes, even if a later rank of the ballot is good.
                     // Allow undervotes to fall back to later ranks.
-                    // This produces results that match the official results.
+                    overvote = true;
                     break;
+                } else if (rank.undervote == "1") {
+                    // Note this solely for calculating exhaustion data.
+                    undervote = true;
                 }
                 if (rank.candidate in round) {
-                    ++round[rank.candidate];
-                    break;
+                    round[rank.candidate].receive_vote(ballot.ranks);
+                    return;
                 }
             }
-        }
+
+            // This ballot was eliminated this round.
+            ballot.elimination_round = round_index;
+
+            if (overvote) {
+                ++round.overvotes;
+            } else if (undervote) {
+                ++round.undervotes;
+            } else {
+		++round.exhausted;
+	    }
+        });
+        console.log("Round " + round_index + " has " + ballot_count + " ballots");
         let lowest_total = Math.min(...Object.values(round));
         // FIXME: This probably isn't right for multiple candidates being eliminated,
         // especially if it eliminates the last one.
@@ -434,6 +525,7 @@ function update_ui() {
             if (round[id] == lowest_total) {
                 candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
                 delete candidates_remaining[id];
+                candidates_eliminated[id] = {};
             }
         }
         rounds.push(round);
@@ -444,6 +536,14 @@ function update_ui() {
     let table = make_rcv_table(candidates_ranked, rounds);
     output.textContent = "";
     output.appendChild(table);
+
+    let transfer_container = document.createElement("div");
+    transfer_container.classList.add("transfer");
+    output.appendChild(transfer_container);
+    transfer_container.appendChild(document.createTextNode("Transfers"));
+    let transfer_div = document.createElement("div");
+    transfer_div.id = "transfers";
+    transfer_container.appendChild(transfer_div);
 
     let filter_container = document.createElement("div");
 
@@ -487,6 +587,47 @@ function update_ui() {
     make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
 
     output.appendChild(filter_container);
+    update_transfers(null, null);
+}
+
+function update_transfers(candidates, event) {
+    let transfers = document.getElementById("transfers");
+    if (!event) {
+        transfers.textContent = "Click on a cell to learn more";
+        return;
+    }
+
+    transfers.textContent = "";
+    let votes = event.originalTarget.votes;
+    if (!votes) {
+        return;
+    }
+
+    let table = document.createElement("table");
+    table.classList.add("transfers");
+    let thead = document.createElement("thead");
+    table.appendChild(thead);
+    let candidate_th = make_cell("th", "Candidate");
+    let votes_th = make_cell("th", "Votes transfered from");
+    thead.appendChild(candidate_th);
+    thead.appendChild(votes_th);
+
+    let tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+
+    Object.entries(votes.transfers_from).map(([id, votes]) => ({ id: id, votes: votes }))
+        .sort((a, b) => b.votes - a.votes)
+        .forEach((transfer) => {
+            let tr = document.createElement("tr");
+            tbody.appendChild(tr);
+            let candidate_name = Object.values(candidates).find((candidate) => candidate.id == transfer.id).name;
+            let candidate_cell = make_cell("th", "" + candidate_name);
+            let votes_cell = make_cell("th", "" + transfer.votes);
+            tr.appendChild(candidate_cell);
+            tr.appendChild(votes_cell);
+        });
+
+    transfers.appendChild(table);
 }
 
 function make_cell(tag_name, text)
@@ -501,18 +642,36 @@ function make_rcv_table(candidates_ranked, rounds)
     let rounds_data = rounds.map(round => {
         let max = 0;
         let sum = 0;
+        let min = Number.MAX_SAFE_INTEGER;
         for (let votes of Object.values(round)) {
             if (votes > max) {
-                max = votes;
+                max = Number(votes);
+            }
+            if (votes < min) {
+                min = Number(votes);
             }
             sum += votes;
         }
-        return {max, sum};
+        return {max, min, sum};
     });
 
     let table = document.createElement("table");
     table.classList.add("rcv_results");
+
+    let thead = document.createElement("thead");
+    table.appendChild(thead);
+    let candidate_th = make_cell("th", "Candidate");
+    thead.appendChild(candidate_th);
+
+    for (let round_index in rounds) {
+        let round_th = make_cell("th", "" + round_index);
+        round_th.classList.add("round");
+        round_th.setAttribute("colspan", "2");
+        thead.appendChild(round_th);
+    }
+
     let tbody = document.createElement("tbody");
+    tbody.addEventListener("click", update_transfers.bind(null, candidates_ranked));
     table.appendChild(tbody);
     for (let candidate of candidates_ranked) {
         let tr = document.createElement("tr");
@@ -543,9 +702,14 @@ function make_rcv_table(candidates_ranked, rounds)
             } else if (votes == round_data.max) {
                 votes_cell.classList.add("leader");
                 pct_cell.classList.add("leader");
+            } else if (votes == round_data.min) {
+                votes_cell.classList.add("bubble");
+                pct_cell.classList.add("bubble");
             }
             votes_cell.classList.add("votes");
             pct_cell.classList.add("percent");
+            votes_cell.votes = votes;
+            pct_cell.votes = votes;
             tr.appendChild(votes_cell);
             tr.appendChild(pct_cell);
         }
@@ -558,6 +722,29 @@ function make_rcv_table(candidates_ranked, rounds)
         total_cell.classList.add("total");
         total_cell.setAttribute("colspan", "2");
         tr_sum.appendChild(total_cell);
+    }
+
+    let tfoot = document.createElement("tfoot");
+    table.appendChild(tfoot);
+    let tr_overvotes = document.createElement("tr");
+    let tr_undervotes = document.createElement("tr");
+    let tr_exhausted = document.createElement("tr");
+    tfoot.appendChild(tr_overvotes);
+    tfoot.appendChild(tr_undervotes);
+    tfoot.appendChild(tr_exhausted);
+    tr_overvotes.appendChild(make_cell("th", "Overvotes"));
+    tr_undervotes.appendChild(make_cell("th", "Undervotes"));
+    tr_exhausted.appendChild(make_cell("th", "Exhausted"));
+    for (let round of rounds) {
+        let overvotes_cell = make_cell("th", "" + round.overvotes);
+        overvotes_cell.setAttribute("colspan", "2");
+        tr_overvotes.appendChild(overvotes_cell);
+        let undervotes_cell = make_cell("th", "" + round.undervotes);
+        undervotes_cell.setAttribute("colspan", "2");
+        tr_undervotes.appendChild(undervotes_cell);
+        let exhausted_cell = make_cell("th", "" + round.exhausted);
+        exhausted_cell.setAttribute("colspan", "2");
+        tr_exhausted.appendChild(exhausted_cell);
     }
 
     return table;
