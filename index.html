@@ -474,52 +474,44 @@ function update_ui() {
             writable: true,
         });
 
-        election.ballots.forEach(function(ballot) {
+        for (let ballot of election.ballots) {
             let district = precinct_to_sup_district_map.get(ballot.precinct);
             if (removed_districts.has(district)) {
-                return;
+                continue;
             }
             let tally_type = ballot.tally_type;
             if (removed_tally_types.has(ballot.tally_type)) {
-                return;
-            }
-
-            if (round_index > ballot.elimination_round) {
-                // Skip ballots already eliminated.
-                return;
+                continue;
             }
 
             ++ballot_count;
             let overvote = false;
-            let undervote = false;
+            let used = false;
             for (let rank of ballot.ranks) {
                 if (rank.overvote == "1") {
                     // Discard overvotes, even if a later rank of the ballot is good.
                     // Allow undervotes to fall back to later ranks.
                     overvote = true;
                     break;
-                } else if (rank.undervote == "1") {
-                    // Note this solely for calculating exhaustion data.
-                    undervote = true;
                 }
                 if (rank.candidate in round) {
                     round[rank.candidate].receive_vote(ballot.ranks);
-                    return;
+                    used = true;
+                    break;
                 }
             }
 
-            // This ballot was eliminated this round.
-            ballot.elimination_round = round_index;
+            if (!used) {
+                // This ballot was eliminated this round.
+                ballot.elimination_round = round_index;
 
-            if (overvote) {
-                ++round.overvotes;
-            } else if (undervote) {
-                ++round.undervotes;
-            } else {
-                ++round.exhausted;
+                if (overvote) {
+                    ++round.overvotes;
+                } else {
+                    ++round.exhausted;
+                }
             }
-        });
-        console.log("Round " + round_index + " has " + ballot_count + " ballots");
+        }
         let lowest_total = Math.min(...Object.values(round));
         // FIXME: This probably isn't right for multiple candidates being eliminated,
         // especially if it eliminates the last one.
@@ -729,21 +721,15 @@ function make_rcv_table(candidates_ranked, rounds)
     let tfoot = document.createElement("tfoot");
     table.appendChild(tfoot);
     let tr_overvotes = document.createElement("tr");
-    let tr_undervotes = document.createElement("tr");
     let tr_exhausted = document.createElement("tr");
     tfoot.appendChild(tr_overvotes);
-    tfoot.appendChild(tr_undervotes);
     tfoot.appendChild(tr_exhausted);
     tr_overvotes.appendChild(make_cell("th", "Overvotes"));
-    tr_undervotes.appendChild(make_cell("th", "Undervotes"));
     tr_exhausted.appendChild(make_cell("th", "Exhausted"));
     for (let round of rounds) {
         let overvotes_cell = make_cell("th", "" + round.overvotes);
         overvotes_cell.setAttribute("colspan", "2");
         tr_overvotes.appendChild(overvotes_cell);
-        let undervotes_cell = make_cell("th", "" + round.undervotes);
-        undervotes_cell.setAttribute("colspan", "2");
-        tr_undervotes.appendChild(undervotes_cell);
         let exhausted_cell = make_cell("th", "" + round.exhausted);
         exhausted_cell.setAttribute("colspan", "2");
         tr_exhausted.appendChild(exhausted_cell);
