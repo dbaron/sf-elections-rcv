@@ -362,7 +362,7 @@ CandidateData.prototype.receive_vote = function(ranks) {
                 ++this.transfers_from_first[ranks[0].candidate];
             } else {
                 ++this.transfers_from_recent[ranks[0].candidate];
-                ++this.transfers_from_first[ranks[1].candidate];
+                ++this.transfers_from_first[ranks[0].candidate];
             }
         } else if (ranks[1].candidate in this.transfers_from_recent) {
             ++this.transfers_from_recent[ranks[1].candidate];
