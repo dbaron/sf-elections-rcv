@@ -392,11 +392,11 @@ function update_ui() {
 
     start_needed_loads(election);
 
-    let output = document.getElementById("output");
+    let contest_output = document.getElementById("contest-output");
     let contest_select = document.getElementById("contest");
 
     if (election.fields == "loading" || election.ballots == "loading") {
-        output.textContent = "Loading...";
+        contest_output.textContent = "Loading...";
 
         set_suppress_change(contest_select, true);
         contest_select.textContent = "";
@@ -546,12 +546,12 @@ function update_ui() {
     candidates_ranked.reverse();
 
     let table = make_rcv_table(candidates_ranked, rounds);
-    output.textContent = "";
-    output.appendChild(table);
+    contest_output.textContent = "";
+    contest_output.appendChild(table);
 
     let transfer_container = document.createElement("div");
     transfer_container.classList.add("transfer");
-    output.appendChild(transfer_container);
+    contest_output.appendChild(transfer_container);
     transfer_container.appendChild(document.createTextNode("Transfers"));
     let transfer_div = document.createElement("div");
     transfer_div.id = "transfers";
@@ -598,7 +598,7 @@ function update_ui() {
     make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })));
     make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
 
-    output.appendChild(filter_container);
+    contest_output.appendChild(filter_container);
     update_transfers(null, null);
 }
 
@@ -766,6 +766,6 @@ function make_rcv_table(candidates_ranked, rounds)
 <select id="election"></select>
 <select id="contest"></select>
 
-<div id="output"></div>
+<div id="contest-output"></div>
 
 <p>(<a href="https://github.com/dbaron/sf-elections-rcv">source on GitHub</a>)</p>
