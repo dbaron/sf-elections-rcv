@@ -37,6 +37,11 @@ table.transfers { border-collapse: collapse; border-width: 2px; }
 table.transfers > tbody > tr > td,
 table.transfers > tbody > tr > th { border: 1px solid black }
 
+table.rcv_results > tbody > tr > td.hover,
+table.rcv_results > tbody > tr > th.hover { background: yellow; }
+table.rcv_results > tbody > tr > td.selected,
+table.rcv_results > tbody > tr > th.selected { background: aqua; }
+
 div.filter {
     display: inline-block;
     vertical-align: top;
@@ -576,12 +581,42 @@ function update_ui() {
             delete gState["selected-round"];
         }
 
+        if ("selected-round" in gState &&
+            "selected-candidate" in gState &&
+            !(gState["selected-candidate"] in rounds[gState["selected-round"]])) {
+            delete gState["selected-candidate"];
+            delete gState["selected-round"];
+        }
+
         gCandidatesRanked = candidates_ranked;
         gRounds = rounds;
 
         let table = make_rcv_table(candidates_ranked, rounds);
         contest_output.textContent = "";
         contest_output.appendChild(table);
+
+        table.addEventListener("mouseover", function(event) {
+            let t = event.target;
+            if (t.tagName != "TD" && t.tagName != "TH") {
+                return;
+            }
+            if (t.textContent == "") {
+                return;
+            }
+            let candidate;
+            let tr = t.parentNode;
+            if (tr.hasAttribute("data-candidate")) {
+                candidate = tr.getAttribute("data-candidate");
+            }
+            set_cell_state(candidate, rcv_cell_to_round(t), "hover");
+        });
+        table.addEventListener("mouseout", function(event) {
+            let t = event.target;
+            if (t.tagName != "TD" && t.tagName != "TH") {
+                return;
+            }
+            set_cell_state(undefined, undefined, "hover");
+        });
 
         let filter_container = document.createElement("div");
 
@@ -630,11 +665,31 @@ function update_ui() {
     update_transfers();
 }
 
+function set_cell_state(candidate, round, state)
+{
+    let tbody = document.getElementById("rcv_results").firstChild;
+    for (let row of tbody.children) {
+        let row_match = candidate !== undefined &&
+                        row.getAttribute("data-candidate") == candidate;
+        for (let cell of row.children) {
+            let state_set = row_match &&
+                            round !== undefined &&
+                            round == rcv_cell_to_round(cell);
+            if (state_set) {
+                cell.classList.add(state);
+            } else {
+                cell.classList.remove(state);
+            }
+        }
+    }
+}
+
 function update_transfers() {
     let candidates = gCandidatesRanked;
     let transfers = document.getElementById("transfers");
     let round = gState["selected-round"];
     let candidate = gState["selected-candidate"];
+    set_cell_state(candidate, round, "selected");
     if (round === undefined || candidate === undefined) {
         transfers.textContent = "Click on a cell to learn more";
         return;
@@ -661,8 +716,6 @@ function update_transfers() {
         .forEach((transfer) => {
             let tr = document.createElement("tr");
             tbody.appendChild(tr);
-            console.log(transfer.id);
-            console.log(Object.values(candidates)[0]);
             let candidate_name = Object.values(candidates).find((candidate) => candidate.id == transfer.id).name;
             let candidate_cell = make_cell("th", "" + candidate_name);
             let votes_recent_cell = make_cell("td", "" + transfer.votes);
@@ -673,6 +726,19 @@ function update_transfers() {
         });
 
     transfers.appendChild(table);
+}
+
+
+function rcv_cell_to_round(cell) {
+    let round;
+    if (cell.classList.contains("votes")) {
+        round = (cell.cellIndex - 1) / 2;
+    } else if (cell.classList.contains("percent")) {
+        round = cell.cellIndex / 2 - 1;
+    } else if (cell.classList.contains("total")) {
+        // for now, don't set state
+    }
+    return round;
 }
 
 function make_cell(tag_name, text)
@@ -702,11 +768,12 @@ function make_rcv_table(candidates_ranked, rounds)
 
     let table = document.createElement("table");
     table.classList.add("rcv_results");
+    table.id = "rcv_results";
 
     let tbody = document.createElement("tbody");
 
     let tr_header = document.createElement("tr");
-    table.appendChild(tr_header);
+    tbody.appendChild(tr_header);
     let candidate_th = make_cell("th", "Candidate");
     tr_header.appendChild(candidate_th);
 
@@ -722,15 +789,11 @@ function make_rcv_table(candidates_ranked, rounds)
         if (target.tagName != "TD" && target.tagName != "TH") {
             return;
         }
-
-        let round;
-        if (target.classList.contains("votes")) {
-            round = (target.cellIndex - 1) / 2;
-        } else if (target.classList.contains("percent")) {
-            round = target.cellIndex / 2 - 1;
-        } else if (target.classList.contains("total")) {
-            // for now, don't set state
+        if (target.textContent == "") {
+            return;
         }
+
+        let round = rcv_cell_to_round(target);
 
         let candidate;
         let tr = target.parentNode;
