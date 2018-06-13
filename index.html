@@ -501,6 +501,7 @@ function update_ui() {
             !(gState["selected-candidate"] in contest_candidates)) {
             delete gState["selected-candidate"];
             delete gState["selected-round"];
+            sethash(gState);
         }
 
         let rounds = [];
@@ -596,6 +597,7 @@ function update_ui() {
             !(gState["selected-round"] in rounds)) {
             delete gState["selected-candidate"];
             delete gState["selected-round"];
+            sethash(gState);
         }
 
         if ("selected-round" in gState &&
@@ -603,6 +605,7 @@ function update_ui() {
             !(gState["selected-candidate"] in rounds[gState["selected-round"]])) {
             delete gState["selected-candidate"];
             delete gState["selected-round"];
+            sethash(gState);
         }
 
         gCandidatesRanked = candidates_ranked;
