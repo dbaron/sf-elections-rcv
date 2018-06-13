@@ -437,165 +437,178 @@ function update_ui() {
     }
 
     let contest = contest_select.value;
+    let filters_string = JSON.stringify(gState.filters);
 
-    let sup_districts = {};
-    let tally_types = {};
-    const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields);
-    for (let ballot of election.ballots) {
-        if (ballot.contest != contest) {
-            continue;
-        }
-        let district = precinct_to_sup_district_map.get(ballot.precinct);
-        if (district == null) {
-            throw Error("precinct_to_sup_district_map could not find " + ballot.precinct)
-        }
-        if (!(district in sup_districts)) {
-            sup_districts[district] = 0;
-        }
-        ++sup_districts[district];
-        let tally_type = ballot.tally_type;
-        if (!(tally_type in tally_types)) {
-            tally_types[tally_type] = 0;
-        }
-        ++tally_types[tally_type];
-    }
+    // Only regenerate the contents of contest_output if we need to, based on
+    // caching the state we used.
+    if (contest_output.getAttribute("data-election") != election ||
+        contest_output.getAttribute("data-contest") != contest ||
+        contest_output.getAttribute("data-filters-string") != filters_string) {
 
-    let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
-    // .map(([id, candidate]) => Object.assign({id}, candidate));
-    let candidates_remaining = Object.assign({}, contest_candidates);
-    let candidates_eliminated = [];
-    let candidates_ranked = [];
-    for (let id in candidates_remaining) {
-        if (gState.filters.indexOf(`candidate-${id}`) != -1) {
-            candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
-            delete candidates_remaining[id];
-            // It's important that these removed candidates are *not* in candidates_eliminated,
-            // for computing accurate backwards looking data in counterfactual scenarios.
-        }
-    }
-    let rounds = [];
-    const removed_districts = new Set(gState.filters
-        .map(x => /^district-d(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
-    const removed_tally_types = new Set(gState.filters
-        .map(x => /^tally_type-(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
-    while (Object.keys(candidates_remaining).length > 1) {
-        let ballot_count = 0;
-        let round_index = rounds.length;
-        let round = Object.keys(candidates_remaining)
-            .reduce((o, id) => Object.assign(o, {[id]: new CandidateData(id, candidates_eliminated)}), {});
+        contest_output.setAttribute("data-election", election);
+        contest_output.setAttribute("data-contest", contest);
+        contest_output.setAttribute("data-filters-string", filters_string);
 
-        // NB: It's very important that these properties are not enumerable!
-        Object.defineProperty(round, "overvotes", {
-            value: 0,
-            enumerable: false,
-            writable: true,
-        });
-        Object.defineProperty(round, "exhausted", {
-            value: 0,
-            enumerable: false,
-            writable: true,
-        });
-
+        let sup_districts = {};
+        let tally_types = {};
+        const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields);
         for (let ballot of election.ballots) {
+            if (ballot.contest != contest) {
+                continue;
+            }
             let district = precinct_to_sup_district_map.get(ballot.precinct);
-            if (removed_districts.has(district)) {
-                continue;
+            if (district == null) {
+                throw Error("precinct_to_sup_district_map could not find " + ballot.precinct)
             }
+            if (!(district in sup_districts)) {
+                sup_districts[district] = 0;
+            }
+            ++sup_districts[district];
             let tally_type = ballot.tally_type;
-            if (removed_tally_types.has(ballot.tally_type)) {
-                continue;
+            if (!(tally_type in tally_types)) {
+                tally_types[tally_type] = 0;
             }
-
-            ++ballot_count;
-            let overvote = false;
-            let used = false;
-            for (let rank of ballot.ranks) {
-                if (rank.overvote == "1") {
-                    // Discard overvotes, even if a later rank of the ballot is good.
-                    // Allow undervotes to fall back to later ranks.
-                    overvote = true;
-                    break;
-                }
-                if (rank.candidate in round) {
-                    round[rank.candidate].receive_vote(ballot.ranks);
-                    used = true;
-                    break;
-                }
-            }
-
-            if (!used) {
-                // This ballot was eliminated this round.
-                ballot.elimination_round = round_index;
-
-                if (overvote) {
-                    ++round.overvotes;
-                } else {
-                    ++round.exhausted;
-                }
-            }
+            ++tally_types[tally_type];
         }
-        let lowest_total = Math.min(...Object.values(round));
-        // FIXME: This probably isn't right for multiple candidates being eliminated,
-        // especially if it eliminates the last one.
+
+        let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
+        // .map(([id, candidate]) => Object.assign({id}, candidate));
+        let candidates_remaining = Object.assign({}, contest_candidates);
+        let candidates_eliminated = [];
+        let candidates_ranked = [];
         for (let id in candidates_remaining) {
-            if (round[id] == lowest_total) {
-                let c = Object.assign({id}, candidates_remaining[id]);
-                candidates_ranked.push(c);
+            if (gState.filters.indexOf(`candidate-${id}`) != -1) {
+                candidates_ranked.push(Object.assign({id}, candidates_remaining[id]));
                 delete candidates_remaining[id];
-                candidates_eliminated.push(id);
+                // It's important that these removed candidates are *not* in candidates_eliminated,
+                // for computing accurate backwards looking data in counterfactual scenarios.
             }
         }
-        rounds.push(round);
-    }
-    candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
-    candidates_ranked.reverse();
+        let rounds = [];
+        const removed_districts = new Set(gState.filters
+            .map(x => /^district-d(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
+        const removed_tally_types = new Set(gState.filters
+            .map(x => /^tally_type-(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
+        while (Object.keys(candidates_remaining).length > 1) {
+            let ballot_count = 0;
+            let round_index = rounds.length;
+            let round = Object.keys(candidates_remaining)
+                .reduce((o, id) => Object.assign(o, {[id]: new CandidateData(id, candidates_eliminated)}), {});
 
-    let table = make_rcv_table(candidates_ranked, rounds);
-    contest_output.textContent = "";
-    contest_output.appendChild(table);
+            // NB: It's very important that these properties are not enumerable!
+            Object.defineProperty(round, "overvotes", {
+                value: 0,
+                enumerable: false,
+                writable: true,
+            });
+            Object.defineProperty(round, "exhausted", {
+                value: 0,
+                enumerable: false,
+                writable: true,
+            });
 
-    let filter_container = document.createElement("div");
+            for (let ballot of election.ballots) {
+                let district = precinct_to_sup_district_map.get(ballot.precinct);
+                if (removed_districts.has(district)) {
+                    continue;
+                }
+                let tally_type = ballot.tally_type;
+                if (removed_tally_types.has(ballot.tally_type)) {
+                    continue;
+                }
 
-    let make_filter = (name, set_id, choices) => {
-        let filter_div = document.createElement("div");
-        filter_div.classList.add("filter");
-        filter_div.setAttribute("data-filter", set_id);
-        filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
+                ++ballot_count;
+                let overvote = false;
+                let used = false;
+                for (let rank of ballot.ranks) {
+                    if (rank.overvote == "1") {
+                        // Discard overvotes, even if a later rank of the ballot is good.
+                        // Allow undervotes to fall back to later ranks.
+                        overvote = true;
+                        break;
+                    }
+                    if (rank.candidate in round) {
+                        round[rank.candidate].receive_vote(ballot.ranks);
+                        used = true;
+                        break;
+                    }
+                }
 
-        for (let choice of choices) {
-            let label = document.createElement("label");
-            let checkbox = document.createElement("input");
-            checkbox.setAttribute("type", "checkbox");
-            let item_id = `${set_id}-${choice.id}`;
-            if (gState.filters.indexOf(item_id) == -1) {
-                checkbox.setAttribute("checked", "");
-            }
-            checkbox.addEventListener("change", (event) => {
-                if (checkbox.checked) {
-                    let index = gState.filters.indexOf(item_id);
-                    if (index == -1) {
-                        console.log(`Unexpectedly couldn't find filter ${item_id}.`);
+                if (!used) {
+                    // This ballot was eliminated this round.
+                    ballot.elimination_round = round_index;
+
+                    if (overvote) {
+                        ++round.overvotes;
                     } else {
-                        gState.filters.splice(index, 1);
+                        ++round.exhausted;
+                    }
+                }
+            }
+            let lowest_total = Math.min(...Object.values(round));
+            // FIXME: This probably isn't right for multiple candidates being eliminated,
+            // especially if it eliminates the last one.
+            for (let id in candidates_remaining) {
+                if (round[id] == lowest_total) {
+                    let c = Object.assign({id}, candidates_remaining[id]);
+                    candidates_ranked.push(c);
+                    delete candidates_remaining[id];
+                    candidates_eliminated.push(id);
+                }
+            }
+            rounds.push(round);
+        }
+        candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
+        candidates_ranked.reverse();
+
+        let table = make_rcv_table(candidates_ranked, rounds);
+        contest_output.textContent = "";
+        contest_output.appendChild(table);
+
+        let filter_container = document.createElement("div");
+
+        let make_filter = (name, set_id, choices) => {
+            let filter_div = document.createElement("div");
+            filter_div.classList.add("filter");
+            filter_div.setAttribute("data-filter", set_id);
+            filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
+
+            for (let choice of choices) {
+                let label = document.createElement("label");
+                let checkbox = document.createElement("input");
+                checkbox.setAttribute("type", "checkbox");
+                let item_id = `${set_id}-${choice.id}`;
+                if (gState.filters.indexOf(item_id) == -1) {
+                    checkbox.setAttribute("checked", "");
+                }
+                checkbox.addEventListener("change", (event) => {
+                    if (checkbox.checked) {
+                        let index = gState.filters.indexOf(item_id);
+                        if (index == -1) {
+                            console.log(`Unexpectedly couldn't find filter ${item_id}.`);
+                        } else {
+                            gState.filters.splice(index, 1);
+                            state_changed();
+                        }
+                    } else {
+                        gState.filters.push(item_id);
                         state_changed();
                     }
-                } else {
-                    gState.filters.push(item_id);
-                    state_changed();
-                }
-            });
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(choice.name));
-            filter_div.appendChild(label);
-        }
-        filter_container.appendChild(filter_div);
-    };
+                });
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(choice.name));
+                filter_div.appendChild(label);
+            }
+            filter_container.appendChild(filter_div);
+        };
 
-    make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num));
-    make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })));
-    make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
+        make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num));
+        make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })));
+        make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
 
-    contest_output.appendChild(filter_container);
+        contest_output.appendChild(filter_container);
+    }
+
     update_transfers(null, null);
 }
 
