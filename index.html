@@ -113,6 +113,8 @@ function sethash(json) {
 }
 
 var gState;
+var gCandidatesRanked;
+var gRounds;
 
 function dom_load_handler() {
     gState = gethash();
@@ -484,6 +486,13 @@ function update_ui() {
                 // for computing accurate backwards looking data in counterfactual scenarios.
             }
         }
+
+        if ("selected-candidate" in gState &&
+            !(gState["selected-candidate"] in contest_candidates)) {
+            delete gState["selected-candidate"];
+            delete gState["selected-round"];
+        }
+
         let rounds = [];
         const removed_districts = new Set(gState.filters
             .map(x => /^district-d(\d+)$/.exec(x)).filter(m => m != null).map(m => m[1]))
@@ -561,6 +570,15 @@ function update_ui() {
         candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
         candidates_ranked.reverse();
 
+        if ("selected-round" in gState &&
+            !(gState["selected-round"] in rounds)) {
+            delete gState["selected-candidate"];
+            delete gState["selected-round"];
+        }
+
+        gCandidatesRanked = candidates_ranked;
+        gRounds = rounds;
+
         let table = make_rcv_table(candidates_ranked, rounds);
         contest_output.textContent = "";
         contest_output.appendChild(table);
@@ -609,18 +627,21 @@ function update_ui() {
         contest_output.appendChild(filter_container);
     }
 
-    update_transfers(null, null);
+    update_transfers();
 }
 
-function update_transfers(candidates, event) {
+function update_transfers() {
+    let candidates = gCandidatesRanked;
     let transfers = document.getElementById("transfers");
-    if (!event) {
+    let round = gState["selected-round"];
+    let candidate = gState["selected-candidate"];
+    if (round === undefined || candidate === undefined) {
         transfers.textContent = "Click on a cell to learn more";
         return;
     }
 
     transfers.textContent = "";
-    let votes = event.target.votes;
+    let votes = gRounds[round][candidate];
     if (!votes) {
         return;
     }
@@ -696,10 +717,37 @@ function make_rcv_table(candidates_ranked, rounds)
         tr_header.appendChild(round_th);
     }
 
-    tbody.addEventListener("click", update_transfers.bind(null, candidates_ranked));
+    tbody.addEventListener("click", function(event) {
+        let target = event.target;
+        if (target.tagName != "TD" && target.tagName != "TH") {
+            return;
+        }
+
+        let round;
+        if (target.classList.contains("votes")) {
+            round = (target.cellIndex - 1) / 2;
+        } else if (target.classList.contains("percent")) {
+            round = target.cellIndex / 2 - 1;
+        } else if (target.classList.contains("total")) {
+            // for now, don't set state
+        }
+
+        let candidate;
+        let tr = target.parentNode;
+        if (tr.hasAttribute("data-candidate")) {
+            candidate = tr.getAttribute("data-candidate");
+        }
+
+        if (round !== undefined && candidate !== undefined) {
+            gState["selected-candidate"] = candidate;
+            gState["selected-round"] = round;
+            state_changed();
+        }
+    });
     table.appendChild(tbody);
     for (let candidate of candidates_ranked) {
         let tr = document.createElement("tr");
+        tr.setAttribute("data-candidate", candidate.id);
         tbody.appendChild(tr);
         let candidate_th = make_cell("th", candidate.name);
         candidate_th.classList.add("candidate");
@@ -733,8 +781,6 @@ function make_rcv_table(candidates_ranked, rounds)
             }
             votes_cell.classList.add("votes");
             pct_cell.classList.add("percent");
-            votes_cell.votes = votes;
-            pct_cell.votes = votes;
             tr.appendChild(votes_cell);
             tr.appendChild(pct_cell);
         }
