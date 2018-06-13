@@ -394,6 +394,7 @@ function update_ui() {
 
     let contest_output = document.getElementById("contest-output");
     let contest_select = document.getElementById("contest");
+    let state_container = document.getElementById("state-container");
 
     if (election.fields == "loading" || election.ballots == "loading") {
         contest_output.textContent = "Loading...";
@@ -406,8 +407,12 @@ function update_ui() {
         contest_select.removeAttribute("data-election");
         set_suppress_change(contest_select, false);
 
+        state_container.style.display = "none";
+
         return;
     }
+
+    state_container.style.display = "";
 
     if (contest_select.getAttribute("data-election") != election.id) {
         contest_select.setAttribute("data-election", election.id);
@@ -548,14 +553,6 @@ function update_ui() {
     let table = make_rcv_table(candidates_ranked, rounds);
     contest_output.textContent = "";
     contest_output.appendChild(table);
-
-    let transfer_container = document.createElement("div");
-    transfer_container.classList.add("transfer");
-    contest_output.appendChild(transfer_container);
-    transfer_container.appendChild(document.createTextNode("Transfers"));
-    let transfer_div = document.createElement("div");
-    transfer_div.id = "transfers";
-    transfer_container.appendChild(transfer_div);
 
     let filter_container = document.createElement("div");
 
@@ -767,5 +764,12 @@ function make_rcv_table(candidates_ranked, rounds)
 <select id="contest"></select>
 
 <div id="contest-output"></div>
+
+<div id="state-container" style="display:none">
+  <div class="transfer">
+    Transfers
+    <div id="transfers"></div>
+  </div>
+</div>
 
 <p>(<a href="https://github.com/dbaron/sf-elections-rcv">source on GitHub</a>)</p>
