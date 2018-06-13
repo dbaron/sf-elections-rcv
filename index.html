@@ -60,6 +60,10 @@ div.transfer {
     border: 1px solid;
 }
 
+object#map {
+    width: 100%;
+}
+
 </style>
 <script>
 'use strict';
@@ -345,6 +349,7 @@ function CandidateData(id, candidates_eliminated) {
     this.candidates_eliminated = candidates_eliminated;
     this.transfers_from_recent = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
     this.transfers_from_first = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
+    this.precinct_votes = {};
 }
 
 CandidateData.prototype.receive_vote = function(ranks) {
@@ -520,7 +525,13 @@ function update_ui() {
                 enumerable: false,
                 writable: true,
             });
+            Object.defineProperty(round, "precinct_votes", {
+                value: {},
+                enumerable: false,
+                writable: true,
+            });
 
+            let precinct_map = election.fields["Precinct"];
             for (let ballot of election.ballots) {
                 let district = precinct_to_sup_district_map.get(ballot.precinct);
                 if (removed_districts.has(district)) {
@@ -542,7 +553,13 @@ function update_ui() {
                         break;
                     }
                     if (rank.candidate in round) {
-                        round[rank.candidate].receive_vote(ballot.ranks);
+                        let candidate_data = round[rank.candidate];
+                        candidate_data.receive_vote(ballot.ranks);
+                        let precinct = precinct_map[ballot.precinct].name.substring(4, 8);
+                        candidate_data.precinct_votes[precinct] =
+                          (candidate_data.precinct_votes[precinct] || 0) + 1;
+                        round.precinct_votes[precinct] =
+                          (round.precinct_votes[precinct] || 0) + 1;
                         used = true;
                         break;
                     }
@@ -662,7 +679,7 @@ function update_ui() {
         contest_output.appendChild(filter_container);
     }
 
-    update_transfers();
+    update_transfers_and_map();
 }
 
 function set_cell_state(candidate, round, state)
@@ -684,7 +701,7 @@ function set_cell_state(candidate, round, state)
     }
 }
 
-function update_transfers() {
+function update_transfers_and_map() {
     let candidates = gCandidatesRanked;
     let transfers = document.getElementById("transfers");
     let round = gState["selected-round"];
@@ -696,7 +713,8 @@ function update_transfers() {
     }
 
     transfers.textContent = "";
-    let votes = gRounds[round][candidate];
+    let round_data = gRounds[round];
+    let votes = round_data[candidate];
     if (!votes) {
         return;
     }
@@ -726,6 +744,21 @@ function update_transfers() {
         });
 
     transfers.appendChild(table);
+
+    let mapDoc = document.getElementById("map").contentDocument;
+    if (!mapDoc) {
+        return;
+    }
+    for (let path = mapDoc.documentElement.firstElementChild; path; path = path.nextElementSibling) {
+        let precinct = path.id.substr(1);
+        if (precinct in round_data.precinct_votes) {
+            let portion = votes.precinct_votes[precinct] / round_data.precinct_votes[precinct];
+            path.style.fill = `rgb(0, 0, ${255 * portion})`;
+        } else {
+            path.style.fill = "silver";
+        }
+    }
+
 }
 
 
@@ -892,6 +925,7 @@ function make_rcv_table(candidates_ranked, rounds)
     Transfers
     <div id="transfers"></div>
   </div>
+  <object data="precincts.svg" type="image/svg+xml" id="map"></object>
 </div>
 
 <p>(<a href="https://github.com/dbaron/sf-elections-rcv">source on GitHub</a>)</p>
