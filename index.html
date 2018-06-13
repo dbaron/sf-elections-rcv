@@ -710,6 +710,18 @@ function set_cell_state(candidate, round, state)
     }
 }
 
+// from https://svgwg.org/svg2-draft/painting.html#ColorInterpolation
+// We will treat srgb as 0-255 but linearrgb as 0-1
+function linearrgb_to_srgb(v) {
+  let rgb;
+  if (v <= 0.04045 / 12.92) {
+    rgb = v * 12.92;
+  } else {
+    rgb = Math.pow(v, 1 / 2.4) * 1.055 - 0.055;
+  }
+  return rgb * 255;
+}
+
 function update_transfers_and_map() {
     let candidates = gCandidatesRanked;
     let transfers = document.getElementById("transfers");
@@ -766,7 +778,7 @@ function update_transfers_and_map() {
         let precinct = path.id.substr(1);
         if (precinct in round_data.precinct_votes) {
             let portion = votes.precinct_votes[precinct] / round_data.precinct_votes[precinct];
-            path.style.fill = `rgb(0, 0, ${255 * portion})`;
+            path.style.fill = `rgb(0, 0, ${linearrgb_to_srgb(portion)})`;
         } else {
             path.style.fill = "silver";
         }
