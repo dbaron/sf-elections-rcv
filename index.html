@@ -710,6 +710,8 @@ function update_transfers_and_map() {
     let round = gState["selected-round"];
     let candidate = gState["selected-candidate"];
     set_cell_state(candidate, round, "selected");
+    let mapObject = document.getElementById("map");
+    mapObject.style.display = "none";
     if (round === undefined || candidate === undefined) {
         transfers.textContent = "Click on a cell to learn more";
         return;
@@ -748,7 +750,9 @@ function update_transfers_and_map() {
 
     transfers.appendChild(table);
 
-    let mapDoc = document.getElementById("map").contentDocument;
+    mapObject.style.display = "";
+
+    let mapDoc = mapObject.contentDocument;
     if (!mapDoc) {
         return;
     }
