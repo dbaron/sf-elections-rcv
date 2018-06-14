@@ -140,7 +140,7 @@ function dom_load_handler() {
         elections_select.appendChild(option);
     }
     elections_select.value = gState.election;
-    elections_select.addEventListener("change", function(event) {
+    elections_select.addEventListener("change", function elections_select_change(event) {
         if (should_suppress_change(elections_select)) {
             return;
         }
@@ -149,7 +149,7 @@ function dom_load_handler() {
     });
 
     let contest_select = document.getElementById("contest");
-    contest_select.addEventListener("change", function(event) {
+    contest_select.addEventListener("change", function contest_select_change(event) {
         if (should_suppress_change(contest_select)) {
             return;
         }
@@ -157,7 +157,7 @@ function dom_load_handler() {
         state_changed();
     });
 
-    document.getElementById("map").addEventListener("load", function(event) {
+    document.getElementById("map").addEventListener("load", function map_load(event) {
         update_ui();
     }, {once: true});
 
@@ -198,9 +198,9 @@ function* generate_lines(str)
 
 function read_fields(election_id)
 {
-    return fetch(new Request(`data/${election_id}_masterlookup.txt`)).then(function(response) {
+    return fetch(new Request(`data/${election_id}_masterlookup.txt`)).then(function fields_load(response) {
         return response.text();
-    }).then(function(text) {
+    }).then(function fields_load_text(text) {
         let fields = {};
         for (let line of generate_lines(text)) {
             let type = line.slice(0, 10).trimRight();
@@ -234,9 +234,9 @@ function read_fields(election_id)
 }
 
 function read_ballots(election_id) {
-    return fetch(new Request(`data/${election_id}_ballotimage.txt`)).then(function(response) {
+    return fetch(new Request(`data/${election_id}_ballotimage.txt`)).then(function ballots_load(response) {
         return response.text();
-    }).then(function(text) {
+    }).then(function ballots_load_text(text) {
         function* generate_ballot_singles(text) {
             for (let line of generate_lines(text)) {
                 let contest = line.slice(0, 7);
@@ -301,12 +301,12 @@ function start_needed_loads(election)
 {
     if (!("fields" in election)) {
         election.fields = "loading";
-        read_fields(election.id).then(function(fields) { election.fields = fields; update_ui(); }).catch(function(error) { console.log(error); delete election.fields; });
+        read_fields(election.id).then(function fields_success(fields) { election.fields = fields; update_ui(); }).catch(function fields_failure(error) { console.log(error); delete election.fields; });
     }
 
     if (!("ballots" in election)) {
         election.ballots = "loading";
-        read_ballots(election.id).then(function(ballots) { election.ballots = ballots; update_ui(); }).catch(function(error) { console.log(error); delete election.ballots; });
+        read_ballots(election.id).then(function ballots_success(ballots) { election.ballots = ballots; update_ui(); }).catch(function ballots_error(error) { console.log(error); delete election.ballots; });
     }
 }
 
@@ -360,7 +360,7 @@ function CandidateData(id, candidates_eliminated) {
     this.precinct_votes = {};
 }
 
-CandidateData.prototype.receive_vote = function(ranks) {
+CandidateData.prototype.receive_vote = function CandidateData_receive_vote(ranks) {
     if (ranks[0].candidate == this.id) {
         ++this.first_place_votes;
     } else if (ranks[1].candidate == this.id) {
@@ -396,7 +396,7 @@ CandidateData.prototype.receive_vote = function(ranks) {
     }
 }
 
-CandidateData.prototype.valueOf = function() {
+CandidateData.prototype.valueOf = function CandidateData_valueOf() {
     return this.first_place_votes + this.second_place_votes + this.third_place_votes;
 }
 
@@ -623,7 +623,7 @@ function update_ui() {
         contest_output.textContent = "";
         contest_output.appendChild(table);
 
-        table.addEventListener("mouseover", function(event) {
+        table.addEventListener("mouseover", function table_mouseover(event) {
             let t = event.target;
             if (t.tagName != "TD" && t.tagName != "TH") {
                 return;
@@ -638,7 +638,7 @@ function update_ui() {
             }
             set_cell_state(candidate, rcv_cell_to_round(t), "hover");
         });
-        table.addEventListener("mouseout", function(event) {
+        table.addEventListener("mouseout", function table_mouseout(event) {
             let t = event.target;
             if (t.tagName != "TD" && t.tagName != "TH") {
                 return;
@@ -845,7 +845,7 @@ function make_rcv_table(candidates_ranked, rounds)
         tr_header.appendChild(round_th);
     }
 
-    tbody.addEventListener("click", function(event) {
+    tbody.addEventListener("click", function tbody_click(event) {
         let target = event.target;
         if (target.tagName != "TD" && target.tagName != "TH") {
             return;
