@@ -729,9 +729,9 @@ function update_transfers_and_map() {
     let candidate = gState["selected-candidate"];
     set_cell_state(candidate, round, "selected");
     let mapObject = document.getElementById("map");
-    mapObject.style.display = "none";
     if (round === undefined || candidate === undefined) {
         transfers.textContent = "Click on a cell to learn more";
+        mapObject.style.display = "none";
         return;
     }
 
@@ -739,6 +739,7 @@ function update_transfers_and_map() {
     let round_data = gRounds[round];
     let votes = round_data[candidate];
     if (!votes) {
+        mapObject.style.display = "none";
         return;
     }
 
