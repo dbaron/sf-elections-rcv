@@ -694,10 +694,10 @@ function update_ui() {
 function set_cell_state(candidate, round, state)
 {
     let tbody = document.getElementById("rcv_results").firstChild;
-    for (let row of tbody.children) {
+    for (let row = tbody.firstElementChild; row; row = row.nextElementSibling) {
         let row_match = candidate !== undefined &&
                         row.getAttribute("data-candidate") == candidate;
-        for (let cell of row.children) {
+        for (let cell = row.firstChild; cell; cell = cell.nextElementSibling) {
             let state_set = row_match &&
                             round !== undefined &&
                             round == rcv_cell_to_round(cell);
