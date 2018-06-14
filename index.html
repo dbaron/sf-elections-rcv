@@ -461,11 +461,11 @@ function update_ui() {
 
     // Only regenerate the contents of contest_output if we need to, based on
     // caching the state we used.
-    if (contest_output.getAttribute("data-election") != election ||
+    if (contest_output.getAttribute("data-election") != election.id ||
         contest_output.getAttribute("data-contest") != contest ||
         contest_output.getAttribute("data-filters-string") != filters_string) {
 
-        contest_output.setAttribute("data-election", election);
+        contest_output.setAttribute("data-election", election.id);
         contest_output.setAttribute("data-contest", contest);
         contest_output.setAttribute("data-filters-string", filters_string);
 
