@@ -781,7 +781,7 @@ function update_transfers_and_map() {
         let precinct = path.id.substr(1);
         if (precinct in round_data.precinct_votes) {
             let portion = (votes.precinct_votes[precinct] || 0) / round_data.precinct_votes[precinct];
-            path.style.fill = `rgb(0, 0, ${linearrgb_to_srgb(portion)})`;
+            path.style.fill = `rgb(0, 0, ${Math.round(linearrgb_to_srgb(portion))})`;
         } else {
             path.style.fill = "silver";
         }
