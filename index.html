@@ -780,7 +780,7 @@ function update_transfers_and_map() {
     for (let path = mapDoc.documentElement.firstElementChild; path; path = path.nextElementSibling) {
         let precinct = path.id.substr(1);
         if (precinct in round_data.precinct_votes) {
-            let portion = votes.precinct_votes[precinct] / round_data.precinct_votes[precinct];
+            let portion = (votes.precinct_votes[precinct] || 0) / round_data.precinct_votes[precinct];
             path.style.fill = `rgb(0, 0, ${linearrgb_to_srgb(portion)})`;
         } else {
             path.style.fill = "silver";
