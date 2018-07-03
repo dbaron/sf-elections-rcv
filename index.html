@@ -110,6 +110,12 @@ let ELECTIONS = [
     id: "20121106_d5" },
   { name: "November 6, 2012 Election, District 7 Supervisor, Final Report",
     id: "20121106_d7" },
+  { name: "November 8, 2011 Election, Mayor, Final Report",
+    id: "20111108_mayor" },
+  { name: "November 8, 2011 Election, District Attorney, Final Report",
+    id: "20111108_da" },
+  { name: "November 8, 2011 Election, Sheriff, Final Report",
+    id: "20111108_sheriff" },
 ];
 
 var gDefaults = {
@@ -335,10 +341,20 @@ function should_suppress_change(select_element) {
     return select_element.hasAttribute("data-suppress-change");
 }
 
-function precincts_to_sup_districts(fields)
+function precincts_to_sup_districts(fields, election_id)
 {
+    const year = Number(election_id.substr(0, 4));
+    if (year < 1970 || year > 2100) {
+        throw `Unexpected year ${year}`;
+    }
     const map = new Map();
     for (const precinct_id in fields["Precinct"]) {
+        if (year <= 2011) {
+            // FIXME: Precincts from 2011 and earlier work differently.
+            // For now, just call them "Unknown".
+            map.set(precinct_id, "Unknown");
+            continue;
+        }
         let precinct = fields["Precinct"][precinct_id].name;
 
         if (!(/^Pct [0-9]{4}/.exec(precinct))) {
@@ -484,7 +500,7 @@ function update_ui() {
 
         let sup_districts = {};
         let tally_types = {};
-        const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields);
+        const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields, election.id);
         for (let ballot of election.ballots) {
             if (ballot.contest != contest) {
                 continue;
