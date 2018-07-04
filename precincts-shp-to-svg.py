@@ -16,7 +16,30 @@ def shapefile_to_svg(sf, output_file, precinct_field):
     if precinct_field_index == None:
         raise StandardError("could not find precinct field")
 
-    xmin, ymin, xmax, ymax = sf.bbox
+    # Manually compute the bounds, because the 2002 precincts file has a
+    # NONE precinct including all the water areas in the city that we
+    # don't want to count.
+    xmin = None
+    ymin = None
+    xmax = None
+    ymax = None
+    for shape, record in zip(sf.shapes(), sf.records()):
+        if shape.shapeType != shapefile.POLYGON:
+            raise StandardError("unexpected shape type " + str(shape.shapeType))
+        precinct_num = record[precinct_field_index]
+        if precinct_num == "" or precinct_num == "NONE":
+            continue
+        for point in shape.points:
+            if xmin is None:
+                xmin = point[0]
+                ymin = point[1]
+                xmax = point[0]
+                ymax = point[1]
+            else:
+                xmin = min(xmin, point[0])
+                ymin = min(ymin, point[1])
+                xmax = max(xmax, point[0])
+                ymax = max(ymax, point[1])
 
     output.write("<svg viewBox=\"0 0 {} {}\" xmlns=\"http://www.w3.org/2000/svg\">\n".format(math.ceil(xmax-xmin), math.ceil(ymax-ymin)))
     for shape, record in zip(sf.shapes(), sf.records()):
