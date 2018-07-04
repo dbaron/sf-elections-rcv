@@ -46,6 +46,15 @@ def shapefile_to_svg(sf, output_file, precinct_field):
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 
 # Download this from:
+# https://data.sfgov.org/City-Management-and-Ethics/Election-Precincts-Historical-Defined-2002/j3dz-virx/data
+# https://data.sfgov.org/api/geospatial/j3dz-virx?method=export&format=Original
+zf = zipfile.ZipFile(os.path.join(BASEDIR, "Elect_Precincts_2002.zip"), "r")
+sf = shapefile.Reader(shp=zf.open("Elect_Precincts_2002.shp"),
+                      dbf=zf.open("Elect_Precincts_2002.dbf"),
+                      shx=zf.open("Elect_Precincts_2002.shx"))
+shapefile_to_svg(sf, os.path.join(BASEDIR, "precincts2002.svg"), "precname");
+
+# Download this from:
 # https://sfgov.org/elections/sites/default/files/2012lines.zip
 zf = zipfile.ZipFile(os.path.join(BASEDIR, "2012lines.zip"), "r")
 sf = shapefile.Reader(shp=zf.open("2012lines/SF_DOE_Precincts_20120702.shp"),
