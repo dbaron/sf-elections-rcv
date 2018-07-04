@@ -23,7 +23,7 @@ def shapefile_to_svg(sf, output_file, precinct_field):
         if shape.shapeType != shapefile.POLYGON:
             raise StandardError("unexpected shape type " + str(shape.shapeType))
         precinct_num = record[precinct_field_index]
-        if precinct_num == "":
+        if precinct_num == "" or precinct_num == "NONE":
             continue
         parts = shape.parts
         next_part_index = 0
