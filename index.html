@@ -478,7 +478,7 @@ function should_suppress_change(select_element) {
     return select_element.hasAttribute("data-suppress-change");
 }
 
-function precincts_to_sup_districts(fields, election_id)
+function precincts_to_sup_districts(fields, election_id, election_map)
 {
     const year = Number(election_id.substr(0, 4));
     if (year < 1970 || year > 2100) {
@@ -486,20 +486,16 @@ function precincts_to_sup_districts(fields, election_id)
     }
     const map = new Map();
     for (const precinct_id in fields["Precinct"]) {
-        if (year <= 2011) {
-            // FIXME: Precincts from 2011 and earlier work differently.
-            // For now, just call them "Unknown".
-            map.set(precinct_id, "Unknown");
-            continue;
-        }
         let precinct = fields["Precinct"][precinct_id].name;
 
-        if (!(/^Pct [0-9]{4}/.exec(precinct))) {
+        if (!(/^P[Cc][Tt] [0-9]{4}/.exec(precinct))) {
             throw `Unexpected precinct: ${precinct}`;
         }
         precinct = precinct.slice(4);
         let sup_district;
-        if (precinct[0] == "7" || precinct[0] == "9") {
+        if ((election_map == "precincts2002.svg")
+            ? (precinct[0] == "2" || precinct[0] == "3")
+            : (precinct[0] == "7" || precinct[0] == "9")) {
             if (precinct[1] == 0) {
                 sup_district = "10";
             } else {
@@ -696,7 +692,7 @@ function update_ui() {
 
         let sup_districts = {};
         let tally_types = {};
-        const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields, election.id);
+        const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields, election.id, election.map);
         for (let ballot of election.ballots) {
             if (ballot.contest != contest) {
                 continue;
