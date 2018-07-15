@@ -871,7 +871,14 @@ function update_ui() {
             let filter_div = document.createElement("div");
             filter_div.classList.add("filter");
             filter_div.setAttribute("data-filter", set_id);
-            filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
+
+            let header_div = document.createElement("div");
+            header_div.appendChild(document.createTextNode(`Filter: ${name} `));
+            let clear_a = document.createElement("a");
+            clear_a.setAttribute("href", `javascript:clear_filters("${set_id}")`);
+            clear_a.appendChild(document.createTextNode("(clear)"));
+            header_div.appendChild(clear_a);
+            filter_div.appendChild(header_div);
 
             for (let choice of choices) {
                 let item = document.createElement("div");
@@ -939,6 +946,20 @@ function filter_only(set_id, choice_id)
             if (index == -1) {
                 gState.filters.push(item_id);
             }
+        }
+    }
+    state_changed();
+}
+
+function clear_filters(set_id)
+{
+    let container = document.querySelector(`.filter[data-filter="${set_id}"]`);
+    for (let item = container.firstChild.nextSibling; item; item = item.nextSibling) {
+        let item_id = item.getAttribute("data-filter-item");
+        let index = gState.filters.indexOf(item_id);
+        // Remove the filter-out if it's present.
+        if (index != -1) {
+            gState.filters.splice(index, 1);
         }
     }
     state_changed();
