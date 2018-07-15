@@ -50,8 +50,6 @@ div.filter {
     border: 1px solid;
 }
 
-div.filter > label { display: block }
-
 div.transfer {
     display: inline-block;
     vertical-align: top;
@@ -869,17 +867,19 @@ function update_ui() {
 
         let filter_container = document.createElement("div");
 
-        let make_filter = (name, set_id, choices) => {
+        let make_filter = (name, set_id, choices, flags) => {
             let filter_div = document.createElement("div");
             filter_div.classList.add("filter");
             filter_div.setAttribute("data-filter", set_id);
             filter_div.appendChild(document.createTextNode(`Filter: ${name}`));
 
             for (let choice of choices) {
+                let item = document.createElement("div");
                 let label = document.createElement("label");
                 let checkbox = document.createElement("input");
                 checkbox.setAttribute("type", "checkbox");
                 let item_id = `${set_id}-${choice.id}`;
+                item.setAttribute("data-filter-item", item_id);
                 if (gState.filters.indexOf(item_id) == -1) {
                     checkbox.setAttribute("checked", "");
                 }
@@ -899,19 +899,49 @@ function update_ui() {
                 });
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(choice.name));
-                filter_div.appendChild(label);
+                item.appendChild(label);
+                if (flags.only_box) {
+                    item.appendChild(document.createTextNode(" "));
+                    let a = document.createElement("a");
+                    a.setAttribute("href", `javascript:filter_only("${set_id}", "${choice.id}")`);
+                    a.appendChild(document.createTextNode("(only)"));
+                    item.appendChild(a);
+                }
+                filter_div.appendChild(item);
             }
             filter_container.appendChild(filter_div);
         };
 
-        make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num));
-        make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })));
-        make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order));
+        make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num), { "only_box": true });
+        make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })), { "only_box": true });
+        make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order), {});
 
         contest_output.appendChild(filter_container);
     }
 
     update_transfers_and_map();
+}
+
+function filter_only(set_id, choice_id)
+{
+    choice_id = `${set_id}-${choice_id}`;
+    let container = document.querySelector(`.filter[data-filter="${set_id}"]`);
+    for (let item = container.firstChild.nextSibling; item; item = item.nextSibling) {
+        let item_id = item.getAttribute("data-filter-item");
+        let index = gState.filters.indexOf(item_id);
+        if (item_id == choice_id) {
+            // Remove the filter-out if it's present.
+            if (index != -1) {
+                gState.filters.splice(index, 1);
+            }
+        } else {
+            // Add the filter-out if it's not present.
+            if (index == -1) {
+                gState.filters.push(item_id);
+            }
+        }
+    }
+    state_changed();
 }
 
 function set_cell_state(candidate, round, state)
