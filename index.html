@@ -688,8 +688,8 @@ function update_ui() {
         contest_output.setAttribute("data-contest", contest);
         contest_output.setAttribute("data-filters-string", filters_string);
 
-        let sup_districts = {};
-        let tally_types = {};
+        let sup_districts = new Map();
+        let tally_types = new Map();
         const precinct_to_sup_district_map = precincts_to_sup_districts(election.fields, election.id, election.map);
         for (let ballot of election.ballots) {
             if (ballot.contest != contest) {
@@ -699,15 +699,9 @@ function update_ui() {
             if (district == null) {
                 throw Error("precinct_to_sup_district_map could not find " + ballot.precinct)
             }
-            if (!(district in sup_districts)) {
-                sup_districts[district] = 0;
-            }
-            ++sup_districts[district];
+            sup_districts.set(district, (sup_districts.get(district) || 0) + 1);
             let tally_type = ballot.tally_type;
-            if (!(tally_type in tally_types)) {
-                tally_types[tally_type] = 0;
-            }
-            ++tally_types[tally_type];
+            tally_types.set(tally_type, (tally_types.get(tally_type) || 0) + 1);
         }
 
         let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
@@ -919,8 +913,8 @@ function update_ui() {
             filter_container.appendChild(filter_div);
         };
 
-        make_filter("Supervisor District", "district", Object.entries(sup_districts).map(([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num), { "only_box": true });
-        make_filter("Tally Type", "tally_type", Object.entries(tally_types).map(([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })), { "only_box": true });
+        make_filter("Supervisor District", "district", Array.from(sup_districts, ([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num), { "only_box": true });
+        make_filter("Tally Type", "tally_type", Array.from(tally_types, ([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })), { "only_box": true });
         make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order), {});
 
         contest_output.appendChild(filter_container);
