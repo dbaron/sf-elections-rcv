@@ -870,8 +870,10 @@ function update_ui() {
             header_div.appendChild(document.createTextNode(`Filter: ${name} `));
             let clear_a = document.createElement("a");
             clear_a.setAttribute("href", `javascript:clear_filters("${set_id}")`);
-            clear_a.appendChild(document.createTextNode("(clear)"));
+            clear_a.appendChild(document.createTextNode("clear"));
+            header_div.appendChild(document.createTextNode("["));
             header_div.appendChild(clear_a);
+            header_div.appendChild(document.createTextNode("]"));
             filter_div.appendChild(header_div);
 
             for (let choice of choices) {
@@ -905,8 +907,10 @@ function update_ui() {
                     item.appendChild(document.createTextNode(" "));
                     let a = document.createElement("a");
                     a.setAttribute("href", `javascript:filter_only("${set_id}", "${choice.id}")`);
-                    a.appendChild(document.createTextNode("(only)"));
+                    a.appendChild(document.createTextNode("only"));
+                    item.appendChild(document.createTextNode("["));
                     item.appendChild(a);
+                    item.appendChild(document.createTextNode("]"));
                 }
                 filter_div.appendChild(item);
             }
@@ -1223,4 +1227,4 @@ function make_rcv_table(candidates_ranked, rounds)
   <object type="image/svg+xml" id="map" style="display:none"></object>
 </div>
 
-<p>(<a href="https://github.com/dbaron/sf-elections-rcv">source on GitHub</a>)</p>
+<p>[<a href="https://github.com/dbaron/sf-elections-rcv">source on GitHub</a>]</p>
