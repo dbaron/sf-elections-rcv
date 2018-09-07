@@ -811,7 +811,9 @@ function update_ui() {
             }
             rounds.push(round);
         }
-        candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
+        if (Object.keys(candidates_remaining).length == 1) {
+            candidates_ranked.push(Object.entries(candidates_remaining).map(([id, candidate]) => Object.assign({id}, candidate))[0]);
+        }
         candidates_ranked.reverse();
 
         if ("selected-round" in gState &&
