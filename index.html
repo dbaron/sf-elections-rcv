@@ -767,6 +767,10 @@ function update_ui() {
 
             let precinct_map = election.fields["Precinct"];
             for (let ballot of election.ballots) {
+                if (ballot.contest != contest) {
+                    continue;
+                }
+
                 let district = precinct_to_sup_district_map.get(ballot.precinct);
                 if (removed_districts.has(district)) {
                     continue;
