@@ -1,0 +1,3 @@
+Redirect 404 /sf-elections-rcv/.git
+Redirect 404 /sf-elections-rcv/precincts-shp-to-svg.py
+Redirect 404 /sf-elections-rcv/subset-cvr.py
