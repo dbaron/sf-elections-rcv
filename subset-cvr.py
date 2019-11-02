@@ -66,7 +66,7 @@ precincts = {o["Id"]: { "Description": o["Description"] } for o in precincts["Li
 #  - "IsVote" seems to represent whether a rank is the top rank.  It can be ignored.
 cvr = json.load(zf.open("CvrExport.json"))
 ballots = []
-for session in cvr["Sessions"][0:100]:
+for session in cvr["Sessions"]:
     # For each session, it looks like we could either use the
     # "Original"/"Modified" properties *or* the "IsCurrent" fields on
     # them to determine modifications.  I'll use "Modified" and ignore
