@@ -509,7 +509,7 @@ function read_ballots(election_id) {
                 let contest = line.slice(0, 7);
                 let voter = line.slice(7, 16);
                 let machine_serial_number = line.slice(16, 23);
-                let tally_type = line.slice(23, 26);
+                let tally_type = "0000" + line.slice(23, 26); // The fields file has more digits
                 let precinct = line.slice(26, 33);
                 let vote_rank = line.slice(33, 36);
                 let candidate = line.slice(36, 43);
@@ -1066,7 +1066,7 @@ function update_ui() {
         };
 
         make_filter("Supervisor District", "district", Array.from(sup_districts, ([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num), { "only_box": true });
-        make_filter("Tally Type", "tally_type", Array.from(tally_types, ([tally_type, count]) => ({ id: tally_type, name: `${election.fields.tally_types["0000" + tally_type].name} (${count})` })), { "only_box": true });
+        make_filter("Tally Type", "tally_type", Array.from(tally_types, ([tally_type, count]) => ({ id: tally_type, name: `${election.fields.tally_types[tally_type].name} (${count})` })), { "only_box": true });
         make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order), {});
 
         contest_output.appendChild(filter_container);
