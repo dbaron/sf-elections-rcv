@@ -564,16 +564,47 @@ function read_ballots(election_id) {
     });
 }
 
+function read_format3_data(election_id) {
+    return fetch(new Request(`data/${election_id}.json`)).then(function data_load(response) {
+        return response.json();
+    }).then(function check_json(json) {
+        // Check that the ballots always (a) have the ranks in order and
+        // (b) don't have duplicate ranks.  There are ballots with ranks
+        // missing (e.g., a ballot with ranks 1 and 3).  (FIXME: It's
+        // not clear to me what happens if the voter writes duplicate
+        // ranks, but those don't seem to show up here, yet anyway.)
+        for (let ballot of json.ballots) {
+            let ranks = ballot.ranks;
+            let last_rank = 0;
+            for (let rank of ranks) {
+                if (rank.rank <= last_rank) {
+                    throw "Found unexpected ballot ranks: " + ballot;
+                }
+                last_rank = rank.rank;
+            }
+        }
+
+        return json;
+    });
+}
+
 function start_needed_loads(election)
 {
-    if (!("fields" in election)) {
-        election.fields = "loading";
-        read_fields(election.id).then(function fields_success(fields) { election.fields = fields; update_ui(); }).catch(function fields_failure(error) { console.log(error); delete election.fields; });
-    }
+    if (election.format == 2) {
+        if (!("fields" in election)) {
+            election.fields = "loading";
+            read_fields(election.id).then(function fields_success(fields) { election.fields = fields; update_ui(); }).catch(function fields_failure(error) { console.log(error); delete election.fields; });
+        }
 
-    if (!("ballots" in election)) {
-        election.ballots = "loading";
-        read_ballots(election.id).then(function ballots_success(ballots) { election.ballots = ballots; update_ui(); }).catch(function ballots_error(error) { console.log(error); delete election.ballots; });
+        if (!("ballots" in election)) {
+            election.ballots = "loading";
+            read_ballots(election.id).then(function ballots_success(ballots) { election.ballots = ballots; update_ui(); }).catch(function ballots_error(error) { console.log(error); delete election.ballots; });
+        }
+    } else if (election.format == 3) {
+        if (!("fields" in election)) {
+            election.fields = "loading";
+            read_format3_data(election.id).then(function data_success(data) { election.fields = data; election.ballots = data.ballots; update_ui(); }).catch(function data_error(error) { console.log(error); delete election.fields; delete election.ballots; });
+        }
     }
 }
 
