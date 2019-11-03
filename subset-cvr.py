@@ -79,7 +79,12 @@ for session in cvr["Sessions"]:
     # so comparisons work well.
     #
     # (Leave only the rank as an integer.)
-    counting_group = str(session["CountingGroupId"])
+
+    # FIXME: We'll call the CountingGroup a TallyType instead so that
+    # the terminology is compatible with format 2, although it's not
+    # entirely the same thing and it's perhaps worth refactoring this
+    # and reporting it as CountingGroup instead.
+    tally_type_id = str(session["CountingGroupId"])
     ballot_type_id = str(entry["BallotTypeId"])
     precinct_id = str(entry["PrecinctPortionId"])
     if precinct_id == "0":
@@ -90,7 +95,7 @@ for session in cvr["Sessions"]:
         ranks = []
         for mark in contest["Marks"]:
             ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
-        ballots += [ { "counting_group": counting_group,
+        ballots += [ { "tally_type": tally_type_id,
                        "ballot_type": ballot_type_id,
                        "precinct": precinct_id,
                        "contest": contest_id,
@@ -103,7 +108,7 @@ json_data = {
               "contests": contests,
               "ballot_types": ballot_types,
               "candidates": candidates,
-              "counting_groups": counting_groups,
+              "tally_types": counting_groups,
               "precincts": precincts,
               "ballots": ballots,
             }
