@@ -73,16 +73,18 @@ for session in cvr["Sessions"]:
     # "IsCurrent" since it seems like they're equivalent.
     entry = session["Modified"] if "Modified" in session else session["Original"]
     counting_group = session["CountingGroupId"]
-    ballot_type = entry["BallotTypeId"]
+    ballot_type_id = entry["BallotTypeId"]
+    precinct_id = entry["PrecinctPortionId"]
     for contest in entry["Contests"]:
         contest_id = contest["Id"]
-        votes = []
+        ranks = []
         for mark in contest["Marks"]:
-            votes += [{"CandidateId": mark["CandidateId"], "Rank": mark["Rank"]}]
-        ballots += [ { "CountingGroupId": counting_group,
-                       "BallotTypeId": ballot_type,
-                       "ContestId": contest_id,
-                       "Votes": votes } ]
+            ranks += [{"candidate": mark["CandidateId"], "rank": mark["Rank"]}]
+        ballots += [ { "counting_group": counting_group,
+                       "ballot_type": ballot_type_id,
+                       "precinct": precinct_id,
+                       "contest": contest_id,
+                       "ranks": ranks } ]
 
 zf.close()
 
