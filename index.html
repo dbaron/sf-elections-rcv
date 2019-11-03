@@ -655,9 +655,8 @@ function precincts_to_sup_districts(fields, election_id, election_map)
 
 function CandidateData(id, candidates_eliminated) {
     this.id = id;
-    this.first_place_votes = 0;
-    this.second_place_votes = 0;
-    this.third_place_votes = 0;
+    this.votes = 0;
+    this.votes_by_rank = [];
     this.candidates_eliminated = candidates_eliminated;
     this.transfers_from_recent = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
     this.transfers_from_first = candidates_eliminated.reduce((o, id) => Object.assign(o, {[id]: 0}), {});
@@ -665,43 +664,42 @@ function CandidateData(id, candidates_eliminated) {
 }
 
 CandidateData.prototype.receive_vote = function CandidateData_receive_vote(ranks) {
-    if (ranks[0].candidate == this.id) {
-        ++this.first_place_votes;
-    } else if (ranks[1].candidate == this.id) {
-        ++this.second_place_votes;
-        if (ranks[0].candidate in this.transfers_from_recent) {
-            ++this.transfers_from_recent[ranks[0].candidate];
-            ++this.transfers_from_first[ranks[0].candidate];
-        }
-    } else if (ranks[2].candidate == this.id) {
-        ++this.third_place_votes;
-        if (ranks[1].candidate in this.transfers_from_recent &&
-            ranks[0].candidate in this.transfers_from_recent &&
-            ranks[1].candidate != ranks[0].candidate) {
-            let r0i = this.candidates_eliminated.indexOf(ranks[0].candidate);
-            let r1i = this.candidates_eliminated.indexOf(ranks[1].candidate);
-            if (r0i == -1 || r1i == -1) {
-                throw `unexpected index ${r0i} ${r1i}`;
+    ++this.votes;
+
+    let this_id = this.id;
+    let receiving_rank = ranks.findIndex((rank) => rank.candidate == this_id);
+    while (this.votes_by_rank.length <= receiving_rank) {
+        this.votes_by_rank.push(0);
+    }
+    // NOTE: In format 3, if a ballot has ranks 1 and 3, this counts the
+    // 3 as a 2, as it probably should.  But note that in format 2 it
+    // doesn't do that since there will be an empty rank.
+    ++this.votes_by_rank[receiving_rank];
+
+    // Note that this code needs to be careful to handle both format 2
+    // (which can have gaps in the ranks) and format 3 (which can have
+    // an arbitrary number of them).
+    if (receiving_rank > 0) {
+        let higher_candidates = ranks.slice(0, receiving_rank).map((rank) => rank.candidate).filter((id) => id != "0000000");
+        if (higher_candidates.length > 0) {
+            let higher_candidates_set = new Set(higher_candidates);
+            let last_eliminated;
+
+            for (let i = this.candidates_eliminated.length; i-- != 0; ) {
+                let candidate = this.candidates_eliminated[i];
+                if (higher_candidates_set.has(candidate)) {
+                    last_eliminated = candidate;
+                    break;
+                }
             }
-            if (r0i < r1i) {
-                ++this.transfers_from_recent[ranks[1].candidate];
-                ++this.transfers_from_first[ranks[0].candidate];
-            } else {
-                ++this.transfers_from_recent[ranks[0].candidate];
-                ++this.transfers_from_first[ranks[0].candidate];
-            }
-        } else if (ranks[1].candidate in this.transfers_from_recent) {
-            ++this.transfers_from_recent[ranks[1].candidate];
-            ++this.transfers_from_first[ranks[1].candidate];
-        } else if (ranks[0].candidate in this.transfers_from_recent) {
-            ++this.transfers_from_recent[ranks[0].candidate];
-            ++this.transfers_from_first[ranks[0].candidate];
+            ++this.transfers_from_recent[last_eliminated];
+            ++this.transfers_from_first[higher_candidates[0]]
         }
     }
 }
 
 CandidateData.prototype.valueOf = function CandidateData_valueOf() {
-    return this.first_place_votes + this.second_place_votes + this.third_place_votes;
+    return this.votes;
 }
 
 function update_ui() {
