@@ -44,20 +44,20 @@ zf = zipfile.ZipFile(cvrFilename, "r")
 # discard the rest.
 
 contests = json.load(zf.open("ContestManifest.json"))
-contests = {o["Id"]: { "Description": o["Description"] } for o in contests["List"]}
+contests = {o["Id"]: { "name": o["Description"] } for o in contests["List"]}
 
 ballot_types = json.load(zf.open("BallotTypeManifest.json"))
-ballot_types = {o["Id"]: { "Description": o["Description"] } for o in ballot_types["List"]}
+ballot_types = {o["Id"]: { "name": o["Description"] } for o in ballot_types["List"]}
 
 candidates = json.load(zf.open("CandidateManifest.json"))
-candidates = {o["Id"]: { "Description": o["Description"],
-                         "ContestId": o["ContestId"] } for o in candidates["List"]}
+candidates = {o["Id"]: { "name": o["Description"],
+                         "contest": o["ContestId"] } for o in candidates["List"]}
 
 counting_groups = json.load(zf.open("CountingGroupManifest.json"))
-counting_groups = {o["Id"]: { "Description": o["Description"] } for o in counting_groups["List"]}
+counting_groups = {o["Id"]: { "name": o["Description"] } for o in counting_groups["List"]}
 
 precincts = json.load(zf.open("PrecinctPortionManifest.json"))
-precincts = {o["Id"]: { "Description": o["Description"] } for o in precincts["List"]}
+precincts = {o["Id"]: { "name": o["Description"] } for o in precincts["List"]}
 
 # It would probably be better to use a streaming JSON processor for this
 # rather than loading the whole thing into memory.
