@@ -470,7 +470,7 @@ function read_fields(election_id)
     }).then(function fields_load_text(text) {
         let fields = {};
         for (let line of generate_lines(text)) {
-            let type = line.slice(0, 10).trimRight();
+            let type = line.slice(0, 10).trimRight().toLowerCase().replace(" ", "_") + "s";
             let id = line.slice(10, 17);
             let name = line.slice(17, 67).trimRight();
             let order = line.slice(67, 74);
@@ -481,7 +481,7 @@ function read_fields(election_id)
                 fields[type] = {};
             }
             let field = fields[type];
-            if (type == "Candidate") {
+            if (type == "candidates") {
                 field[id] = { name, order, contest: candidate_contest, writein }
             } else {
                 if (candidate_contest != "0000000") {
@@ -596,8 +596,8 @@ function precincts_to_sup_districts(fields, election_id, election_map)
         throw `Unexpected year ${year}`;
     }
     const map = new Map();
-    for (const precinct_id in fields["Precinct"]) {
-        let precinct = fields["Precinct"][precinct_id].name;
+    for (const precinct_id in fields.precincts) {
+        let precinct = fields.precincts[precinct_id].name;
 
         if (!(/^P[Cc][Tt] [0-9]{4}/.exec(precinct))) {
             throw `Unexpected precinct: ${precinct}`;
@@ -770,7 +770,7 @@ function update_ui() {
         contest_select.setAttribute("data-election", report_string);
         set_suppress_change(contest_select, true);
         contest_select.textContent = "";
-        let contests = election.fields["Contest"];
+        let contests = election.fields.contests;
         let found = false;
         for (let contest in contests) {
             let contest_option = document.createElement("option");
@@ -817,7 +817,7 @@ function update_ui() {
             tally_types.set(tally_type, (tally_types.get(tally_type) || 0) + 1);
         }
 
-        let contest_candidates = Object.entries(election.fields["Candidate"]).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
+        let contest_candidates = Object.entries(election.fields.candidates).filter(([id, candidate]) => candidate.contest == contest).reduce((o, [id, candidate]) => Object.assign(o, {[id]: Object.assign({id}, candidate)}), {});
         // .map(([id, candidate]) => Object.assign({id}, candidate));
         let candidates_remaining = Object.assign({}, contest_candidates);
         let candidates_eliminated = [];
@@ -866,7 +866,7 @@ function update_ui() {
                 writable: true,
             });
 
-            let precinct_map = election.fields["Precinct"];
+            let precinct_map = election.fields.precincts;
             for (let ballot of election.ballots) {
                 if (ballot.contest != contest) {
                     continue;
@@ -1037,7 +1037,7 @@ function update_ui() {
         };
 
         make_filter("Supervisor District", "district", Array.from(sup_districts, ([district, count]) => ({ num: Number(district), id: `d${district}`, name: `District ${district} (${count})` })).sort((a, b) => a.num - b.num), { "only_box": true });
-        make_filter("Tally Type", "tally_type", Array.from(tally_types, ([tally_type, count]) => ({ id: tally_type, name: `${election.fields["Tally Type"]["0000" + tally_type].name} (${count})` })), { "only_box": true });
+        make_filter("Tally Type", "tally_type", Array.from(tally_types, ([tally_type, count]) => ({ id: tally_type, name: `${election.fields.tally_types["0000" + tally_type].name} (${count})` })), { "only_box": true });
         make_filter("Remove Candidates", "candidate", Object.values(contest_candidates).map((candidate) => ({ id: candidate.id, name: candidate.name, order: Number(candidate.order)})).sort((a, b) => a.order - b.order), {});
 
         contest_output.appendChild(filter_container);
