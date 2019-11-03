@@ -72,17 +72,24 @@ for session in cvr["Sessions"]:
     # them to determine modifications.  I'll use "Modified" and ignore
     # "IsCurrent" since it seems like they're equivalent.
     entry = session["Modified"] if "Modified" in session else session["Original"]
-    counting_group = session["CountingGroupId"]
-    ballot_type_id = entry["BallotTypeId"]
-    precinct_id = entry["PrecinctPortionId"]
-    if precinct_id == 0:
+
+    # Convert all the ID-like things to strings, for use as values,
+    # because both JSON and JavaScript are bad at having integer-typed
+    # keys (they tend to convert to strings), so make everything strings
+    # so comparisons work well.
+    #
+    # (Leave only the rank as an integer.)
+    counting_group = str(session["CountingGroupId"])
+    ballot_type_id = str(entry["BallotTypeId"])
+    precinct_id = str(entry["PrecinctPortionId"])
+    if precinct_id == "0":
         print("WARNING: Changing precinct ID of 0 to 1.  (Hope this is a problem only in the test dataset.)")
-        precinct_id = 1
+        precinct_id = "1"
     for contest in entry["Contests"]:
-        contest_id = contest["Id"]
+        contest_id = str(contest["Id"])
         ranks = []
         for mark in contest["Marks"]:
-            ranks += [{"candidate": mark["CandidateId"], "rank": mark["Rank"]}]
+            ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
         ballots += [ { "counting_group": counting_group,
                        "ballot_type": ballot_type_id,
                        "precinct": precinct_id,
