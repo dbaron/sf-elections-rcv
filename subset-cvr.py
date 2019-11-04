@@ -46,9 +46,6 @@ zf = zipfile.ZipFile(cvrFilename, "r")
 contests = json.load(zf.open("ContestManifest.json"))
 contests = {o["Id"]: { "name": o["Description"] } for o in contests["List"]}
 
-ballot_types = json.load(zf.open("BallotTypeManifest.json"))
-ballot_types = {o["Id"]: { "name": o["Description"] } for o in ballot_types["List"]}
-
 candidates = json.load(zf.open("CandidateManifest.json"))
 candidates = {o["Id"]: { "name": o["Description"],
                          "contest": o["ContestId"] } for o in candidates["List"]}
@@ -85,7 +82,6 @@ for session in cvr["Sessions"]:
     # entirely the same thing and it's perhaps worth refactoring this
     # and reporting it as CountingGroup instead.
     tally_type_id = str(session["CountingGroupId"])
-    ballot_type_id = str(entry["BallotTypeId"])
     precinct_id = str(entry["PrecinctPortionId"])
     if precinct_id == "0":
         print("WARNING: Changing precinct ID of 0 to 1.  (Hope this is a problem only in the test dataset.)")
@@ -96,7 +92,6 @@ for session in cvr["Sessions"]:
         for mark in contest["Marks"]:
             ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
         ballots += [ { "tally_type": tally_type_id,
-                       "ballot_type": ballot_type_id,
                        "precinct": precinct_id,
                        "contest": contest_id,
                        "ranks": ranks } ]
@@ -106,7 +101,6 @@ zf.close()
 
 json_data = {
               "contests": contests,
-              "ballot_types": ballot_types,
               "candidates": candidates,
               "tally_types": counting_groups,
               "precincts": precincts,
