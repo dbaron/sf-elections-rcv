@@ -79,6 +79,9 @@ shapefile_to_svg(sf, os.path.join(BASEDIR, "precincts2002.svg"), "precname");
 
 # Download this from:
 # https://sfgov.org/elections/sites/default/files/2012lines.zip
+# found via:
+# http://web.archive.org/web/20160708194111/https://sfgov.org/elections/data-results-maps-and-archives
+# http://web.archive.org/web/20160708194111/https://sfgov.org/elections/sites/default/files/2012lines.zip
 zf = zipfile.ZipFile(os.path.join(BASEDIR, "2012lines.zip"), "r")
 sf = shapefile.Reader(shp=zf.open("2012lines/SF_DOE_Precincts_20120702.shp"),
                       dbf=zf.open("2012lines/SF_DOE_Precincts_20120702.dbf"),
