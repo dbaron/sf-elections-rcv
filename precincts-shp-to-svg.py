@@ -94,3 +94,12 @@ sf = shapefile.Reader(shp=zf.open("SF_DOE_Precincts_2017.shp"),
                       shx=zf.open("SF_DOE_Precincts_2017.shx"))
 shapefile_to_svg(sf, os.path.join(BASEDIR, "precincts2017.svg"), "PREC_2017");
 
+# Download this from:
+# https://sfelections.sfgov.org/maps
+# https://sfelections.sfgov.org/sites/default/files/Documents/Maps/2019lines_20190628.zip
+zf = zipfile.ZipFile(os.path.join(BASEDIR, "2019lines_20190628.zip"), "r")
+sf = shapefile.Reader(shp=zf.open("SF_DOE_PREC_2019.shp"),
+                      dbf=zf.open("SF_DOE_PREC_2019.dbf"),
+                      shx=zf.open("SF_DOE_PREC_2019.shx"))
+shapefile_to_svg(sf, os.path.join(BASEDIR, "precincts2019.svg"), "PREC_2019");
+
