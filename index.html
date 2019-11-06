@@ -573,16 +573,25 @@ function read_format3_data(election_id) {
     return fetch(new Request(`data/${election_id}.json`)).then(function data_load(response) {
         return response.json();
     }).then(function check_json(json) {
-        // Check that the ballots always (a) have the ranks in order and
-        // (b) don't have duplicate ranks.  There are ballots with ranks
-        // missing (e.g., a ballot with ranks 1 and 3).  (FIXME: It's
-        // not clear to me what happens if the voter writes duplicate
-        // ranks, but those don't seem to show up here, yet anyway.)
+        // Check that the ballots always (a) have the ranks in order.
+        // Note that there are ballots with ranks missing (e.g., a
+        // ballot with ranks 1 and 3), which is fine.
+        //
+        // Furthermore, replace any duplicate ranks with a marking that
+        // there was an overvote.
         for (let ballot of json.ballots) {
             let ranks = ballot.ranks;
             let last_rank = 0;
-            for (let rank of ranks) {
-                if (rank.rank <= last_rank) {
+            for (let rank_index in ranks) {
+                let rank = ranks[rank_index];
+                if (rank.rank == last_rank) {
+                    // We found an overvote.  Remove everything in the
+                    // array starting with the overvote.
+                    ranks.splice(rank_index - 1, ranks.length);
+                    ranks.push({ overvote: true });
+                    break;
+                }
+                if (rank.rank < last_rank) {
                     throw "Found unexpected ballot ranks: " + ballot;
                 }
                 last_rank = rank.rank;
