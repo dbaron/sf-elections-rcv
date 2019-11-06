@@ -70,6 +70,9 @@ for session in cvr["Sessions"]:
     # "IsCurrent" since it seems like they're equivalent.
     entry = session["Modified"] if "Modified" in session else session["Original"]
 
+    # Currently unused, but can add this to the ballot items for debugging.
+    #ballot_id = session["ImageMask"].rsplit(sep="\\", maxsplit=1)[1].split(sep="*",maxsplit=1)[0]
+
     # Convert all the ID-like things to strings, for use as values,
     # because both JSON and JavaScript are bad at having integer-typed
     # keys (they tend to convert to strings), so make everything strings
