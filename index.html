@@ -701,8 +701,10 @@ CandidateData.prototype.receive_vote = function CandidateData_receive_vote(ranks
     if (receiving_rank > 0) {
         let higher_candidates = ranks.slice(0, receiving_rank).
                                     map((rank) => rank.candidate).
-                                    filter((id) => id != "0000000" &&
-                                                   this.candidates_eliminated.indexOf(id) != -1);
+                                    // The id might not be present if (a) it's a format 2 ballot
+                                    // with gaps in the ranks or (b) the candidate was filtered
+                                    // out using the UI.
+                                    filter((id) => this.candidates_eliminated.indexOf(id) != -1);
         if (higher_candidates.length > 0) {
             let higher_candidates_set = new Set(higher_candidates);
             let last_eliminated;
