@@ -83,9 +83,6 @@ for session in cvr["Sessions"]:
     # and reporting it as CountingGroup instead.
     tally_type_id = str(session["CountingGroupId"])
     precinct_id = str(entry["PrecinctPortionId"])
-    if precinct_id == "0":
-        print("WARNING: Changing precinct ID of 0 to 1.  (Hope this is a problem only in the test dataset.)")
-        precinct_id = "1"
     for contest in entry["Contests"]:
         contest_id = str(contest["Id"])
         ranks = []
