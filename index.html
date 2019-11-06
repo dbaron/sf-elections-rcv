@@ -699,7 +699,10 @@ CandidateData.prototype.receive_vote = function CandidateData_receive_vote(ranks
     // (which can have gaps in the ranks) and format 3 (which can have
     // an arbitrary number of them).
     if (receiving_rank > 0) {
-        let higher_candidates = ranks.slice(0, receiving_rank).map((rank) => rank.candidate).filter((id) => id != "0000000");
+        let higher_candidates = ranks.slice(0, receiving_rank).
+                                    map((rank) => rank.candidate).
+                                    filter((id) => id != "0000000" &&
+                                                   this.candidates_eliminated.indexOf(id) != -1);
         if (higher_candidates.length > 0) {
             let higher_candidates_set = new Set(higher_candidates);
             let last_eliminated;
