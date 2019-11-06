@@ -90,6 +90,9 @@ for session in cvr["Sessions"]:
         contest_id = str(contest["Id"])
         ranks = []
         for mark in contest["Marks"]:
+            if mark["IsAmbiguous"]:
+                # This means the mark should be discarded.
+                continue
             ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
         ballots += [ { "tally_type": tally_type_id,
                        "precinct": precinct_id,
