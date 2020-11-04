@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # sf-elections-rcv - software to display ranked choice voting results
 #   for San Francisco elections
