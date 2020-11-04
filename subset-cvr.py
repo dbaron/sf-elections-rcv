@@ -58,46 +58,65 @@ precincts = {o["Id"]: { "name": o["Description"] } for o in precincts["List"]}
 
 # It would probably be better to use a streaming JSON processor for this
 # rather than loading the whole thing into memory.
+# This is less of an issue with the split files starting in 2020, though.
 
-# A few notes on the CVR format:
-#  - "IsVote" seems to represent whether a rank is the top rank.  It can be ignored.
-cvr = json.load(zf.open("CvrExport.json"))
 ballots = []
-for session in cvr["Sessions"]:
-    # For each session, it looks like we could either use the
-    # "Original"/"Modified" properties *or* the "IsCurrent" fields on
-    # them to determine modifications.  I'll use "Modified" and ignore
-    # "IsCurrent" since it seems like they're equivalent.
-    entry = session["Modified"] if "Modified" in session else session["Original"]
+for filename in zf.namelist():
+    # Starting in 2020 there are multiple files, rather than a single
+    # CvrExport.json file.
+    if not filename.startswith("CvrExport") or not filename.endswith(".json"):
+        continue
 
-    # Currently unused, but can add this to the ballot items for debugging.
-    #ballot_id = session["ImageMask"].rsplit(sep="\\", maxsplit=1)[1].split(sep="*",maxsplit=1)[0]
+    # A few notes on the CVR format:
+    #  - "IsVote" seems to represent whether a rank is the top rank.  It can be ignored.
+    cvr = json.load(zf.open(filename))
+    for session in cvr["Sessions"]:
+        # For each session, it looks like we could either use the
+        # "Original"/"Modified" properties *or* the "IsCurrent" fields on
+        # them to determine modifications.  I'll use "Modified" and ignore
+        # "IsCurrent" since it seems like they're equivalent.
+        entry = session["Modified"] if "Modified" in session else session["Original"]
 
-    # Convert all the ID-like things to strings, for use as values,
-    # because both JSON and JavaScript are bad at having integer-typed
-    # keys (they tend to convert to strings), so make everything strings
-    # so comparisons work well.
-    #
-    # (Leave only the rank as an integer.)
+        # Currently unused, but can add this to the ballot items for debugging.
+        #ballot_id = session["ImageMask"].rsplit(sep="\\", maxsplit=1)[1].split(sep="*",maxsplit=1)[0]
 
-    # FIXME: We'll call the CountingGroup a TallyType instead so that
-    # the terminology is compatible with format 2, although it's not
-    # entirely the same thing and it's perhaps worth refactoring this
-    # and reporting it as CountingGroup instead.
-    tally_type_id = str(session["CountingGroupId"])
-    precinct_id = str(entry["PrecinctPortionId"])
-    for contest in entry["Contests"]:
-        contest_id = str(contest["Id"])
-        ranks = []
-        for mark in contest["Marks"]:
-            if mark["IsAmbiguous"]:
-                # This means the mark should be discarded.
-                continue
-            ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
-        ballots += [ { "tally_type": tally_type_id,
-                       "precinct": precinct_id,
-                       "contest": contest_id,
-                       "ranks": ranks } ]
+        # Convert all the ID-like things to strings, for use as values,
+        # because both JSON and JavaScript are bad at having integer-typed
+        # keys (they tend to convert to strings), so make everything strings
+        # so comparisons work well.
+        #
+        # (Leave only the rank as an integer.)
+
+        # FIXME: We'll call the CountingGroup a TallyType instead so that
+        # the terminology is compatible with format 2, although it's not
+        # entirely the same thing and it's perhaps worth refactoring this
+        # and reporting it as CountingGroup instead.
+        tally_type_id = str(session["CountingGroupId"])
+        precinct_id = str(entry["PrecinctPortionId"])
+
+        def generate_contests(entry):
+            if "Contests" in entry:
+                # pre-2020 format
+                for contest in entry["Contests"]:
+                    yield contest
+            else:
+                # 2020 format
+                for card in entry["Cards"]:
+                    for contest in card["Contests"]:
+                        yield contest
+
+        for contest in generate_contests(entry):
+            contest_id = str(contest["Id"])
+            ranks = []
+            for mark in contest["Marks"]:
+                if mark["IsAmbiguous"]:
+                    # This means the mark should be discarded.
+                    continue
+                ranks += [{"candidate": str(mark["CandidateId"]), "rank": mark["Rank"]}]
+            ballots += [ { "tally_type": tally_type_id,
+                           "precinct": precinct_id,
+                           "contest": contest_id,
+                           "ranks": ranks } ]
 
 zf.close()
 
